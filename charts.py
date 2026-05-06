@@ -210,17 +210,17 @@ def forecast_cone_chart(
     scenarios: list[dict],
     target_date,
 ) -> go.Figure:
-    """Stock chart with Bull/Base/Bear forecast cone. `scenarios` = [{label,target,ret},...] ordered Bull, Base, Bear."""
+    """Two-panel chart: history (left, resizable) + cone (right, fixed). Spot always at the panel boundary."""
     from datetime import datetime, timedelta
 
-    fig = go.Figure()
+    from plotly.subplots import make_subplots
 
-    fig.add_trace(go.Scatter(
-        x=history_dates, y=history_close, mode="lines",
-        name="COKE",
-        line=dict(color=WH_NAVY, width=2.2),
-        hovertemplate="%{x|%b %d, %Y}<br>$%{y:.2f}<extra></extra>",
-    ))
+    fig = make_subplots(
+        rows=1, cols=2,
+        shared_yaxes=True,
+        horizontal_spacing=0.005,
+        column_widths=[0.78, 0.22],
+    )
 
     if history_dates:
         anchor_date = history_dates[-1]
@@ -231,16 +231,25 @@ def forecast_cone_chart(
     base = next(s for s in scenarios if s["label"] == "Base")
     bear = next(s for s in scenarios if s["label"] == "Bear")
 
-    # Single Wolf Hill blue cone fill — outer envelope (Bull-to-Bear) shaded once
+    # LEFT panel: historical price line
+    fig.add_trace(go.Scatter(
+        x=history_dates, y=history_close, mode="lines",
+        name="COKE",
+        line=dict(color=WH_NAVY, width=2.2),
+        hovertemplate="%{x|%b %d, %Y}<br>$%{y:.2f}<extra></extra>",
+        showlegend=False,
+    ), row=1, col=1)
+
+    # RIGHT panel: cone fill (single light WH navy envelope)
     fig.add_trace(go.Scatter(
         x=[anchor_date, target_date, target_date, anchor_date],
         y=[current_price, bull["target"], bear["target"], current_price],
         fill="toself", fillcolor="rgba(48, 63, 85, 0.12)",
         line=dict(color="rgba(0,0,0,0)"),
         showlegend=False, hoverinfo="skip",
-    ))
+    ), row=1, col=2)
 
-    # Three forecast lines (kept distinct so each scenario reads)
+    # RIGHT panel: three scenario lines + annotations
     line_specs = [
         ("Bull", bull, WH_GREEN, "solid"),
         ("Base", base, WH_NAVY, "dash"),
@@ -251,52 +260,52 @@ def forecast_cone_chart(
             x=[anchor_date, target_date],
             y=[current_price, scen["target"]],
             mode="lines",
-            name=f"{label}: ${scen['target']:.0f} ({scen['ret']*100:+.1f}%)",
             line=dict(color=color, width=2.5, dash=dash),
             hovertemplate=f"<b>{label}</b><br>Target: $%{{y:.2f}}<br>Return: {scen['ret']*100:+.1f}%<extra></extra>",
-        ))
+            showlegend=False,
+        ), row=1, col=2)
         fig.add_annotation(
             x=target_date, y=scen["target"],
+            xref="x2", yref="y",
             text=f"<b>{label}</b><br>${scen['target']:.0f} • {scen['ret']*100:+.1f}%",
             showarrow=False, xanchor="left", yanchor="middle",
             font=dict(color=color, size=11),
             xshift=8,
         )
 
+    # Spot marker — at the panel boundary (start of right panel = anchor_date)
     fig.add_trace(go.Scatter(
         x=[anchor_date], y=[current_price],
         mode="markers+text",
-        name=f"Spot: ${current_price:.2f}",
         marker=dict(color=WH_NAVY, size=12, line=dict(width=2, color="white")),
         text=[f"${current_price:.2f}"], textposition="top center",
         textfont=dict(color=WH_NAVY, size=11),
         hoverinfo="skip",
         showlegend=False,
-    ))
+    ), row=1, col=2)
 
-    # Custom range buttons (updatemenus supports relayout; rangeselector doesn't)
+    SPOT_FRACTION = 0.55  # spot lands ~55% from bottom (within the 40-60% band)
+
+    def _strip(d):
+        return d.replace(tzinfo=None) if hasattr(d, "tzinfo") and d.tzinfo else d
+
     def _y_range(start_dt):
-        # Visible history Y values
-        def _strip(d):
-            return d.replace(tzinfo=None) if hasattr(d, "tzinfo") and d.tzinfo else d
         s = _strip(start_dt)
-        e = _strip(target_date)
+        e = _strip(anchor_date)
         hist_y = [c for d, c in zip(history_dates, history_close)
                   if s <= _strip(d) <= e and c is not None and c > 0]
-        cone_y = [current_price, bull["target"], base["target"], bear["target"]]
-        all_y = hist_y + cone_y
-        if not all_y:
-            return None
-        y_min, y_max = min(all_y), max(all_y)
-        pad = max((y_max - y_min) * 0.05, 1.0)
-        return [max(0, y_min - pad), y_max + pad]
+        cone_lows = [bear["target"], base["target"]]
+        candidates_low = hist_y + cone_lows
+        y_min = max(0.0, min(candidates_low) * 0.92) if candidates_low else 0.0
+        y_max = (current_price - y_min) / SPOT_FRACTION + y_min
+        if hist_y:
+            y_max = max(y_max, max(hist_y) * 1.05)
+        y_max = max(y_max, bull["target"] * 1.05)
+        return [y_min, y_max]
 
     def _btn_args(start_dt):
-        relayout = {"xaxis.range": [start_dt.isoformat(), target_date.isoformat()]}
-        yr = _y_range(start_dt)
-        if yr is not None:
-            relayout["yaxis.range"] = yr
-        return [relayout]
+        return [{"xaxis.range": [start_dt.isoformat(), anchor_date.isoformat()],
+                 "yaxis.range": _y_range(start_dt)}]
 
     earliest = history_dates[0] if history_dates else anchor_date
     range_buttons = [
@@ -310,7 +319,6 @@ def forecast_cone_chart(
         dict(label="MAX", method="relayout", args=_btn_args(earliest)),
     ]
 
-    # Google Finance-style: subtle pills, gray text, active highlighted
     fig.update_layout(
         updatemenus=[dict(
             type="buttons",
@@ -329,20 +337,17 @@ def forecast_cone_chart(
 
     default_start = anchor_date - timedelta(days=365)
     default_yr = _y_range(default_start)
-    fig.update_yaxes(title="Price ($)", tickprefix="$",
-                     range=default_yr if default_yr else None)
-    fig.update_xaxes(
-        title="",
-        range=[default_start.isoformat(), target_date.isoformat()],
-    )
+    fig.update_yaxes(title="Price ($)", tickprefix="$", range=default_yr, row=1, col=1)
+    fig.update_yaxes(showticklabels=False, range=default_yr, row=1, col=2)
+    fig.update_xaxes(title="", range=[default_start.isoformat(), anchor_date.isoformat()], row=1, col=1)
+    fig.update_xaxes(title="", range=[anchor_date, target_date], showticklabels=False, row=1, col=2)
+
     fig = _apply_style(
         fig,
         "COKE — Price History & Forecast Cone",
         f"Spot: ${current_price:.2f} • Targets via 2026 YE return scenarios (EPS-based)",
         height=560,
     )
-    # Cone-specific overrides: room for buttons below subtitle, room for target labels on right,
-    # hide legend (redundant with annotations at the right edge of the cone)
     fig.update_layout(
         margin=dict(l=60, r=130, t=160, b=60),
         showlegend=False,
