@@ -17,11 +17,14 @@ def render_snapshot(cap: dict) -> None:
 
 
 def render_scenario_selector() -> str:
+    import os
     import subprocess
     import sys
     from pathlib import Path
 
     import loaders
+
+    OWNER_USERNAME = "JoshuaLehrman"
 
     options = ["Base", "Bull", "Bear"]
     statuses = {opt: scen.scenario_status(opt) for opt in options}
@@ -37,7 +40,8 @@ def render_scenario_selector() -> str:
         label_visibility="collapsed",
     )
 
-    if loaders.LIVE_MODEL.exists():
+    is_owner = os.environ.get("USERNAME", "") == OWNER_USERNAME
+    if is_owner and loaders.LIVE_MODEL.exists():
         if st.button("↻ Refresh Bull / Bear from live model",
                      help="Opens Excel via COM, flips Summary!D4 to capture each scenario, writes scenarios.json."):
             with st.spinner("Flipping scenario switch in Excel — this takes ~10 seconds..."):
