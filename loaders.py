@@ -1,4 +1,4 @@
-"""Excel + market-data loaders. All cached so the app reads the model once per session."""
+"""Excel + market-data loaders. Cached, mtime-keyed for live model edits."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,51 +11,28 @@ MODEL_FILE = Path(__file__).parent / "data" / "WH COKE Model v04.29.2026.xlsx"
 TICKER = "COKE"
 
 
-@st.cache_data(show_spinner=False)
-def load_workbook_bytes() -> bytes:
-    return MODEL_FILE.read_bytes()
-
-
 def _read_sheet(sheet_name: str) -> pd.DataFrame:
     return pd.read_excel(MODEL_FILE, sheet_name=sheet_name, header=None, engine="openpyxl")
 
 
 @st.cache_data(show_spinner=False)
-def load_summary() -> dict:
-    """Pulls the Summary tab into a structured dict for the top block."""
+def load_summary(_mtime: float = 0.0) -> dict:
     df = _read_sheet("Summary")
-
     years = list(range(2022, 2030))
     cols_g_to_n = list(range(6, 14))
 
-    def row(i: int) -> list[float]:
-        return [df.iat[i, c] for c in cols_g_to_n]
-
-    revenue = row(3)
-    ebitda = row(11)
-    ebitda_margin = row(12)
-    eps = row(21)
-    eps_yoy = row(22)
-    revenue_yoy = row(4)
-    ebitda_yoy = row(13)
-
-    valuation_years = years
-    ev_sales = row(29)
-    wh_ev_ebitda = row(32)
-    wh_pe = row(33)
-    shares_out = row(35)
-    net_debt_yr = row(36)
-    adj_tev = row(37)
+    def row(i: int) -> list:
+        return [df.iat[i, c] if pd.notna(df.iat[i, c]) else None for c in cols_g_to_n]
 
     cap_table = {
         "price": float(df.iat[6, 3]),
         "diluted_shares": float(df.iat[7, 3]),
         "total_debt": float(df.iat[9, 3]),
         "cash": float(df.iat[10, 3]),
-        "nci": float(df.iat[12, 3]),
+        "nci": float(df.iat[12, 3]) if pd.notna(df.iat[12, 3]) else 0.0,
     }
 
-    return_scenarios_eps = [
+    return_eps = [
         {"label": "Bull", "metric": float(df.iat[4, 16]), "multiple": float(df.iat[4, 17]),
          "target": float(df.iat[4, 18]), "npv": float(df.iat[4, 19]),
          "ret": float(df.iat[4, 20]), "irr": float(df.iat[4, 21])},
@@ -66,7 +43,7 @@ def load_summary() -> dict:
          "target": float(df.iat[6, 18]), "npv": float(df.iat[6, 19]),
          "ret": float(df.iat[6, 20]), "irr": float(df.iat[6, 21])},
     ]
-    return_scenarios_ebitda = [
+    return_ebitda = [
         {"label": "Bull", "metric": float(df.iat[10, 16]), "multiple": float(df.iat[10, 17]),
          "target": float(df.iat[10, 18]), "npv": float(df.iat[10, 19]),
          "ret": float(df.iat[10, 20]), "irr": float(df.iat[10, 21])},
@@ -80,41 +57,35 @@ def load_summary() -> dict:
 
     return {
         "years": years,
-        "revenue": revenue,
-        "revenue_yoy": revenue_yoy,
-        "ebitda": ebitda,
-        "ebitda_margin": ebitda_margin,
-        "ebitda_yoy": ebitda_yoy,
-        "eps": eps,
-        "eps_yoy": eps_yoy,
+        "revenue": row(3),
+        "revenue_yoy": row(4),
+        "ebitda": row(11),
+        "ebitda_margin": row(12),
+        "ebitda_yoy": row(13),
+        "eps": row(21),
+        "eps_yoy": row(22),
         "valuation": {
-            "years": valuation_years,
-            "ev_sales": ev_sales,
-            "ev_ebitda": wh_ev_ebitda,
-            "pe": wh_pe,
-            "shares_out": shares_out,
-            "net_debt": net_debt_yr,
-            "adj_tev": adj_tev,
+            "years": years,
+            "ev_sales": row(29),
+            "ev_ebitda": row(32),
+            "pe": row(33),
+            "shares_out": row(35),
+            "net_debt": row(36),
+            "adj_tev": row(37),
         },
         "cap_table_static": cap_table,
-        "return_eps": return_scenarios_eps,
-        "return_ebitda": return_scenarios_ebitda,
+        "return_eps": return_eps,
+        "return_ebitda": return_ebitda,
     }
 
 
 @st.cache_data(show_spinner=False)
-def load_segment_build() -> dict:
-    """Pulls Segment Build tab — quarterly Sparkling and Still volume + price YoY growth + scatter source data."""
+def load_segment_build(_mtime: float = 0.0) -> dict:
     df = _read_sheet("Segment Build")
-
     quarter_labels = [df.iat[4, c] for c in range(5, 61)]
 
-    def row(i: int, start: int = 5, end: int = 61) -> list[float | None]:
-        out = []
-        for c in range(start, end):
-            v = df.iat[i, c]
-            out.append(v if pd.notna(v) else None)
-        return out
+    def row(i: int) -> list:
+        return [df.iat[i, c] if pd.notna(df.iat[i, c]) else None for c in range(5, 61)]
 
     return {
         "quarters": quarter_labels,
@@ -133,13 +104,16 @@ def load_segment_build() -> dict:
 
 
 @st.cache_data(show_spinner=False)
-def load_cogs_sensitivity() -> dict:
-    """Pulls COGS Sensitivity tab — aluminum price/volume/spend by quarter."""
+def load_cogs_sensitivity(_mtime: float = 0.0) -> dict:
     df = _read_sheet("COGS Sensitivity")
     quarter_labels = [df.iat[4, c] for c in range(5, 61)]
 
-    def row(i: int) -> list[float | None]:
+    def row(i: int) -> list:
         return [df.iat[i, c] if pd.notna(df.iat[i, c]) else None for c in range(5, 61)]
+
+    cans_per_case = float(df.iat[32, 4])  # E33
+    grams_per_can = float(df.iat[33, 4])  # E34
+    kg_per_can_case = float(df.iat[34, 4])  # E35
 
     return {
         "quarters": quarter_labels,
@@ -150,7 +124,13 @@ def load_cogs_sensitivity() -> dict:
         "all_in_cost_per_kg": row(40),
         "aluminum_volume_kg_mm": row(39),
         "aluminum_spend_mm": row(41),
-        "yoy_change_combined": row(20),
+        "cases_in_cans_mm": row(26),
+        "kg_per_total_case": row(36),
+        "content": {
+            "cans_per_case": cans_per_case,
+            "grams_per_can": grams_per_can,
+            "kg_per_can_case": kg_per_can_case,
+        },
     }
 
 
@@ -165,8 +145,21 @@ def load_live_price() -> float:
     return float(p)
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def load_oil_quarterly() -> dict:
+    """Quarterly close of WTI futures from yfinance, 2016-present."""
+    t = yf.Ticker("CL=F")
+    hist = t.history(start="2016-01-01", interval="3mo")
+    if hist.empty:
+        return {"quarters": [], "close": []}
+    quarters = []
+    for d in hist.index:
+        q = (d.month - 1) // 3 + 1
+        quarters.append(f"Q{q} {str(d.year)[-2:]}")
+    return {"quarters": quarters, "close": [float(c) for c in hist["Close"]]}
+
+
 def derive_cap_table(static: dict, live_price: float) -> dict:
-    """Replicates the Summary cap-table math with a live price input."""
     market_cap = live_price * static["diluted_shares"]
     net_debt = static["total_debt"] - static["cash"]
     enterprise_value = market_cap + net_debt + static["nci"]

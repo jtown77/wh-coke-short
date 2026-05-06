@@ -1,0 +1,20 @@
+{
+  "_note": "Bull and Bear are seeded as Base for now. Replace the arrays with your scenario outputs (revenue/ebitda/eps for years 2022-2029) when ready. Years order: 2022,2023,2024,2025,2026,2027,2028,2029.",
+  "Base": {
+    "use_model": true
+  },
+  "Bull": {
+    "use_model": false,
+    "revenue": null,
+    "ebitda": null,
+    "eps": null,
+    "todo": "Re-run model in Bull case and paste 8-element arrays for revenue, ebitda, eps."
+  },
+  "Bear": {
+    "use_model": false,
+    "revenue": null,
+    "ebitda": null,
+    "eps": null,
+    "todo": "Re-run model in Bear case and paste 8-element arrays for revenue, ebitda, eps."
+  }
+}
