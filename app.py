@@ -337,7 +337,7 @@ def main() -> None:
     summary_base = loaders.load_summary()
     seg = loaders.load_segment_build()
     cogs = loaders.load_cogs_sensitivity()
-    oil = loaders.load_oil_quarterly()
+    commodities = loaders.load_commodities_daily(years=3)
     live_price = loaders.load_live_price()
     cap = loaders.derive_cap_table(summary_base["cap_table_static"], live_price)
     history = loaders.load_stock_history(period="1y")
@@ -360,37 +360,43 @@ def main() -> None:
     )
     st.markdown("")
 
-    sections.render_forecast_cone(history, cap, summary_base)
+    tab_thesis, tab_qual = st.tabs(["Thesis", "Qualitative Research"])
 
-    st.markdown("---")
+    with tab_thesis:
+        sections.render_forecast_cone(history, cap, summary_base)
 
-    # Scenario selector — radio sits below the divider
-    st.markdown('<div class="eyebrow">Scenario</div>', unsafe_allow_html=True)
-    chosen_scenario = sections.render_scenario_selector()
-    summary = scen.apply_scenario(summary_base, chosen_scenario)
+        st.markdown("---")
 
-    sections.render_summary_block(summary, cap)
-    sections.render_refresh_block()
+        # Scenario selector — radio sits below the divider
+        st.markdown('<div class="eyebrow">Scenario</div>', unsafe_allow_html=True)
+        chosen_scenario = sections.render_scenario_selector()
+        summary = scen.apply_scenario(summary_base, chosen_scenario)
 
-    st.markdown("---")
-    sections.render_executive_summary()
-    sections.render_thesis()
+        sections.render_summary_block(summary, cap)
+        sections.render_refresh_block()
 
-    st.markdown("---")
-    st.markdown('<div class="eyebrow">Demand & Pricing</div>', unsafe_allow_html=True)
-    st.markdown("## Volume vs. Price — Where the Pressure Sits")
-    sections.render_elasticity(seg, "Sparkling", figure_num=1)
-    st.markdown("")
-    sections.render_elasticity(seg, "Still", figure_num=2)
-    st.markdown("")
-    sections.render_quarterly_yoy(seg, figure_num=3)
+        st.markdown("---")
+        sections.render_executive_summary()
+        sections.render_thesis()
 
-    st.markdown("---")
-    st.markdown('<div class="eyebrow">Cost Stack</div>', unsafe_allow_html=True)
-    st.markdown("## Commodity Exposure — Aluminum and Oil")
-    sections.render_commodity_stack(cogs, oil, figure_num=4)
-    st.markdown("")
-    sections.render_aluminum_sensitivity(cogs, summary, cap, figure_num=5)
+        st.markdown("---")
+        st.markdown('<div class="eyebrow">Demand & Pricing</div>', unsafe_allow_html=True)
+        st.markdown("## Volume vs. Price — Where the Pressure Sits")
+        sections.render_elasticity(seg, "Sparkling", figure_num=1)
+        st.markdown("")
+        sections.render_elasticity(seg, "Still", figure_num=2)
+        st.markdown("")
+        sections.render_quarterly_yoy(seg, figure_num=3)
+
+        st.markdown("---")
+        st.markdown('<div class="eyebrow">Cost Stack</div>', unsafe_allow_html=True)
+        st.markdown("## Commodity Exposure — Aluminum and Oil")
+        sections.render_commodity_stack(commodities, figure_num=4)
+        st.markdown("")
+        sections.render_aluminum_sensitivity(cogs, summary, cap, figure_num=5)
+
+    with tab_qual:
+        sections.render_snap_brief()
 
 
 if __name__ == "__main__":

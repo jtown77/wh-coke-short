@@ -32,7 +32,9 @@ def load_snapshot() -> dict:
 
 
 @st.cache_data(show_spinner=False)
-def _load_snapshot_cached(_mtime: float) -> dict:
+def _load_snapshot_cached(mtime: float) -> dict:
+    """mtime is included in the cache key (no underscore prefix) so any change to
+    snapshot.json on disk auto-busts the cache on the next call."""
     if not SNAPSHOT_FILE.exists():
         raise FileNotFoundError(
             f"{SNAPSHOT_FILE} not found. Run regenerate_scenarios.py to capture the model."
@@ -127,6 +129,28 @@ def load_oil_quarterly() -> dict:
         q = (d.month - 1) // 3 + 1
         quarters.append(f"Q{q} {str(d.year)[-2:]}")
     return {"quarters": quarters, "close": [float(c) for c in hist["Close"]]}
+
+
+def load_commodities_daily(years: int = 3) -> dict:
+    """Daily close for CME Midwest US Aluminum (ALI=F, $/MT) + WTI (CL=F, $/bbl)
+    over the trailing N years. Aluminum is quoted directly in USD/metric ton on CME.
+    """
+    from datetime import datetime, timedelta
+    start = (datetime.utcnow() - timedelta(days=int(years * 365.25) + 30)).strftime("%Y-%m-%d")
+
+    al = yf.Ticker("ALI=F").history(start=start, interval="1d")
+    wti = yf.Ticker("CL=F").history(start=start, interval="1d")
+
+    al_dates = [d.strftime("%Y-%m-%d") for d in al.index] if not al.empty else []
+    al_close_mt = [float(c) for c in al["Close"]] if not al.empty else []
+
+    wti_dates = [d.strftime("%Y-%m-%d") for d in wti.index] if not wti.empty else []
+    wti_close = [float(c) for c in wti["Close"]] if not wti.empty else []
+
+    return {
+        "aluminum": {"dates": al_dates, "close_per_mt": al_close_mt},
+        "wti": {"dates": wti_dates, "close_per_bbl": wti_close},
+    }
 
 
 def derive_cap_table(static: dict, live_price: float) -> dict:

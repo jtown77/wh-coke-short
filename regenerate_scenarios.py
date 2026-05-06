@@ -174,12 +174,36 @@ def main() -> int:
         return 1
 
     print("Launching Excel via COM...")
-    excel = win32.gencache.EnsureDispatch("Excel.Application")
+    last_err = None
+    excel = None
+    for attempt in range(5):
+        try:
+            excel = win32.DispatchEx("Excel.Application")
+            break
+        except Exception as e:
+            last_err = e
+            print(f"  DispatchEx attempt {attempt + 1}/5 failed: {e}")
+            time.sleep(2)
+    if excel is None:
+        print(f"ERROR: could not launch Excel via COM after 5 retries: {last_err}", file=sys.stderr)
+        return 1
+
     # Visible=True coaxes Excel into loading installed add-ins (notably Bloomberg).
     # A hidden COM-launched Excel often skips add-in load, leaving =BDP/=BQL formulas
     # as errors which COM returns as large negative ints (-2146826273 etc.).
-    excel.Visible = True
-    excel.DisplayAlerts = False
+    # If the property put fails (Excel desktop session restricted, etc.), continue and
+    # rely on the explicit AddIns2 load below.
+    for attempt in range(3):
+        try:
+            excel.Visible = True
+            break
+        except Exception as e:
+            print(f"  Visible=True attempt {attempt + 1}/3 failed: {e}")
+            time.sleep(1.5)
+    try:
+        excel.DisplayAlerts = False
+    except Exception as e:
+        print(f"  DisplayAlerts=False failed (continuing): {e}")
     # Force Bloomberg add-in to be loaded if installed
     try:
         for ai in excel.AddIns2:
@@ -281,7 +305,26 @@ def main() -> int:
         "segment_build": seg,
         "cogs_sensitivity": cogs,
     }
-    SNAPSHOT_FILE.write_text(json.dumps(snapshot, indent=2, default=str))
+
+    # Validate: every scenario must have non-None targets/rets across return_eps
+    # and return_ebitda. If any are None, abort the write so a transient Bloomberg
+    # calc-timing miss can't corrupt the saved snapshot.
+    bad = []
+    for sname, sdata in snapshot["scenarios"].items():
+        for kind in ("return_eps", "return_ebitda"):
+            for row in sdata.get(kind, []):
+                if row.get("target") is None or row.get("ret") is None:
+                    bad.append(f"{sname}/{kind}/{row.get('label')}")
+    if bad:
+        print(f"\nERROR: refusing to write snapshot — incomplete capture for: {', '.join(bad)}",
+              file=sys.stderr)
+        print("Existing snapshot.json on disk left untouched.", file=sys.stderr)
+        return 1
+
+    # Atomic write: temp file + rename, so a crash mid-write can't truncate the live file
+    tmp = SNAPSHOT_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(snapshot, indent=2, default=str))
+    tmp.replace(SNAPSHOT_FILE)
     print(f"\nWrote {SNAPSHOT_FILE}")
     return 0
 

@@ -165,28 +165,18 @@ def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
     )
 
 
-def commodity_stack_chart(quarters: list, all_in_aluminum: list, oil_quarters: list, oil_close: list, figure_num: int) -> go.Figure:
-    """Aluminum (left axis, $/MT) and WTI Oil (right axis, $/bbl) — quarterly historical only."""
-    # Truncate aluminum to history
-    al_vals, al_q = _filter_history(all_in_aluminum, quarters, end_label="Q4 25")
-    # Filter oil to matching range
-    oil_filtered_q, oil_filtered_v = [], []
-    valid_q = set(al_q)
-    for q, v in zip(oil_quarters, oil_close):
-        if q in valid_q:
-            oil_filtered_q.append(q)
-            oil_filtered_v.append(v)
-
+def commodity_stack_chart(al_dates: list, al_close_mt: list, wti_dates: list, wti_close: list, figure_num: int) -> go.Figure:
+    """Daily aluminum (left axis, $/MT) and WTI Oil (right axis, $/bbl) — last 3 years."""
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=al_q, y=al_vals, mode="lines", name="Aluminum All-in ($/MT, left)",
-        line=dict(color=WH_NAVY, width=2.5),
+        x=al_dates, y=al_close_mt, mode="lines", name="Aluminum All-in ($/MT, left)",
+        line=dict(color=WH_NAVY, width=2),
         hovertemplate="<b>Aluminum</b><br>%{x}: $%{y:,.0f}/MT<extra></extra>",
         yaxis="y",
     ))
     fig.add_trace(go.Scatter(
-        x=oil_filtered_q, y=oil_filtered_v, mode="lines", name="WTI Oil ($/bbl, right)",
-        line=dict(color=WH_AMBER, width=2.5),
+        x=wti_dates, y=wti_close, mode="lines", name="WTI Oil ($/bbl, right)",
+        line=dict(color=WH_AMBER, width=2),
         hovertemplate="<b>WTI</b><br>%{x}: $%{y:.1f}/bbl<extra></extra>",
         yaxis="y2",
     ))
@@ -197,11 +187,11 @@ def commodity_stack_chart(quarters: list, all_in_aluminum: list, oil_quarters: l
         yaxis2=dict(title="WTI Oil ($/bbl)", tickprefix="$", overlaying="y", side="right",
                     showgrid=False),
     )
-    fig.update_xaxes(title="", tickangle=-45, nticks=14)
+    fig.update_xaxes(title="", tickformat="%b %Y", nticks=10)
     return _apply_style(
         fig,
         f"Figure {figure_num}. Commodity Cost Stack — Aluminum & WTI Oil",
-        "Quarterly historical • aluminum drives can-pack COGS, oil drives PET-resin and freight",
+        "Daily • last 3 years • aluminum drives can-pack COGS, oil drives PET-resin and freight",
         height=460,
     )
 
@@ -267,18 +257,22 @@ def forecast_cone_chart(
         ("Bear", bear, WH_ACCENT, "solid"),
     ]
     for label, scen, color, dash in line_specs:
+        ret = scen.get("ret")
+        if ret is None and scen.get("target") is not None and current_price:
+            ret = (scen["target"] - current_price) / current_price
+        ret_str = f"{ret*100:+.1f}%" if ret is not None else "n/a"
         fig.add_trace(go.Scatter(
             x=[anchor_date, target_date],
             y=[current_price, scen["target"]],
             mode="lines",
             line=dict(color=color, width=2.5, dash=dash),
-            hovertemplate=f"<b>{label}</b><br>Target: $%{{y:.2f}}<br>Return: {scen['ret']*100:+.1f}%<extra></extra>",
+            hovertemplate=f"<b>{label}</b><br>Target: $%{{y:.2f}}<br>Return: {ret_str}<extra></extra>",
             showlegend=False,
         ), row=1, col=2)
         fig.add_annotation(
             x=target_date, y=scen["target"],
             xref="x2", yref="y2",
-            text=f"<b>{label}</b><br>${scen['target']:.0f} • {scen['ret']*100:+.1f}%",
+            text=f"<b>{label}</b><br>${scen['target']:.0f} • {ret_str}",
             showarrow=False, xanchor="left", yanchor="middle",
             font=dict(color=color, size=11),
             xshift=8,
