@@ -4,6 +4,7 @@ from __future__ import annotations
 import streamlit as st
 
 import loaders
+import sections
 
 st.set_page_config(
     page_title="Wolf Hill — COKE Short Thesis",
@@ -33,20 +34,38 @@ def main() -> None:
     if not _password_gate():
         return
 
+    summary = loaders.load_summary()
+    seg = loaders.load_segment_build()
+    cogs = loaders.load_cogs_sensitivity()
+    live_price = loaders.load_live_price()
+    cap = loaders.derive_cap_table(summary["cap_table_static"], live_price)
+
     st.markdown("# Coca-Cola Consolidated (COKE) — Short Thesis")
     st.caption("Wolf Hill Capital Management — internal")
 
-    summary = loaders.load_summary()
-    live_price = loaders.load_live_price()
-    cap_table = loaders.derive_cap_table(summary["cap_table_static"], live_price)
+    sections.render_snapshot(cap)
+    st.divider()
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Live Price", f"${cap_table['price']:.2f}")
-    c2.metric("Market Cap", f"${cap_table['market_cap']:,.0f}M")
-    c3.metric("Enterprise Value", f"${cap_table['enterprise_value']:,.0f}M")
-    c4.metric("Net Debt", f"${cap_table['net_debt']:,.0f}M")
+    sections.render_summary_block(summary, cap)
+    st.divider()
 
-    st.info("Phase 1 scaffold loaded. Sections coming online in Phase 2.")
+    sections.render_executive_summary()
+    sections.render_thesis()
+    st.divider()
+
+    st.markdown("### Demand Elasticity — Sparkling Beverages")
+    sections.render_elasticity(seg, "Sparkling")
+    st.divider()
+
+    st.markdown("### Demand Elasticity — Still Beverages")
+    sections.render_elasticity(seg, "Still")
+    st.divider()
+
+    st.markdown("### Quarterly Y/Y Price & Volume Growth")
+    sections.render_quarterly_yoy(seg)
+    st.divider()
+
+    sections.render_aluminum(cogs, summary, cap)
 
 
 if __name__ == "__main__":
