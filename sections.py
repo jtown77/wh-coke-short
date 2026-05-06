@@ -107,7 +107,6 @@ def render_summary_block(s: dict, cap: dict) -> None:
             ["Total Debt ($M)", f"${cap['total_debt']:,.0f}"],
             ["Cash ($M)", f"${cap['cash']:,.0f}"],
             ["Net Debt ($M)", f"${cap['net_debt']:,.0f}"],
-            ["NCI ($M)", f"${cap['nci']:,.0f}"],
             ["Enterprise Value ($M)", f"${cap['enterprise_value']:,.0f}"],
         ], columns=["", "Value"])
         st.dataframe(cap_df, hide_index=True, use_container_width=True)
@@ -154,20 +153,18 @@ def render_summary_block(s: dict, cap: dict) -> None:
         st.markdown("**EPS-based**")
         eps_df = pd.DataFrame([
             [r["label"], f"${r['metric']:.2f}", _fmt_x(r["multiple"], 0),
-             f"${r['target']:.2f}", f"${r['npv']:.2f}",
-             _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
+             f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
             for r in s["return_eps"]
-        ], columns=["Scenario", "EPS", "P/E", "Target", "NPV", "% Return", "IRR"])
+        ], columns=["Scenario", "EPS", "P/E", "Target", "% Return", "IRR"])
         st.dataframe(eps_df, hide_index=True, use_container_width=True)
 
     with rcol2:
         st.markdown("**EBITDA-based**")
         eb_df = pd.DataFrame([
             [r["label"], f"${r['metric']:,.0f}M", _fmt_x(r["multiple"], 0),
-             f"${r['target']:.2f}", f"${r['npv']:.2f}",
-             _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
+             f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
             for r in s["return_ebitda"]
-        ], columns=["Scenario", "EBITDA", "EV/EBITDA", "Target", "NPV", "% Return", "IRR"])
+        ], columns=["Scenario", "EBITDA", "EV/EBITDA", "Target", "% Return", "IRR"])
         st.dataframe(eb_df, hide_index=True, use_container_width=True)
 
 
