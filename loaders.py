@@ -180,6 +180,19 @@ def load_live_price() -> float:
     return float(p)
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def load_stock_history(years: int = 2) -> dict:
+    """Daily close history for COKE over the past N years from yfinance."""
+    t = yf.Ticker(TICKER)
+    hist = t.history(period=f"{years}y", interval="1d")
+    if hist.empty:
+        return {"dates": [], "close": []}
+    return {
+        "dates": [d.to_pydatetime() for d in hist.index],
+        "close": [float(c) for c in hist["Close"]],
+    }
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def load_oil_quarterly() -> dict:
     """Quarterly close of WTI futures from yfinance, 2016-present."""

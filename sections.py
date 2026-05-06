@@ -1,6 +1,8 @@
 """Streamlit section renderers — each function builds one section of the page."""
 from __future__ import annotations
 
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
@@ -8,12 +10,47 @@ import charts
 import scenarios as scen
 
 
-def render_snapshot(cap: dict) -> None:
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Live Price (COKE)", f"${cap['price']:.2f}")
-    c2.metric("Market Cap", f"${cap['market_cap']:,.0f}M")
-    c3.metric("Enterprise Value", f"${cap['enterprise_value']:,.0f}M")
-    c4.metric("Net Debt", f"${cap['net_debt']:,.0f}M")
+WH_NAVY = "#303f55"
+WH_GRAY_LIGHT = "#fafbfc"
+WH_BORDER = "#e7eaef"
+
+
+def _style_table(df: pd.DataFrame, first_col_bold: bool = True):
+    """Apply Wolf Hill row styling — navy header, alternating rows, subtle borders."""
+    sty = df.style.set_table_styles([
+        {"selector": "thead th",
+         "props": [("background-color", WH_NAVY), ("color", "white"),
+                   ("font-weight", "600"), ("text-align", "right"),
+                   ("padding", "8px 12px"), ("border-bottom", f"1px solid {WH_NAVY}")]},
+        {"selector": "thead th:first-child", "props": [("text-align", "left")]},
+        {"selector": "tbody td",
+         "props": [("padding", "7px 12px"), ("border-bottom", f"1px solid {WH_BORDER}"),
+                   ("text-align", "right"), ("font-size", "0.92rem")]},
+        {"selector": "tbody td:first-child",
+         "props": [("text-align", "left"),
+                   ("font-weight", "600" if first_col_bold else "400"),
+                   ("color", WH_NAVY)]},
+        {"selector": "tbody tr:nth-child(even) td",
+         "props": [("background-color", WH_GRAY_LIGHT)]},
+        {"selector": "", "props": [("border-collapse", "separate"),
+                                    ("border-spacing", "0"),
+                                    ("width", "100%")]},
+    ])
+    return sty
+
+
+def _render_styled_table(df: pd.DataFrame, first_col_bold: bool = True) -> None:
+    sty = _style_table(df, first_col_bold)
+    st.markdown(sty.hide(axis="index").to_html(), unsafe_allow_html=True)
+
+
+def render_forecast_cone(history: dict, cap: dict, summary: dict) -> None:
+    target_date = datetime(2026, 12, 31)
+    fig = charts.forecast_cone_chart(
+        history["dates"], history["close"], cap["price"],
+        summary["return_eps"], target_date,
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def render_scenario_selector() -> str:
@@ -82,27 +119,10 @@ def _fmt_x(v, dec=1):
 
 
 def render_summary_block(s: dict, cap: dict) -> None:
-    st.markdown("#### Financial Summary")
-    years = s["years"]
-    fin_df = pd.DataFrame({
-        "": ["Revenue ($M)", "  YoY %", "EBITDA ($M)", "  Margin %", "  YoY %", "Adj. EPS ($)", "  YoY %"],
-        **{
-            str(y): [
-                _fmt_money(s["revenue"][i], 0),
-                _fmt_pct(s["revenue_yoy"][i]),
-                _fmt_money(s["ebitda"][i], 0),
-                _fmt_pct(s["ebitda_margin"][i]),
-                _fmt_pct(s["ebitda_yoy"][i]),
-                f"${s['eps'][i]:.2f}" if s["eps"][i] is not None else "",
-                _fmt_pct(s["eps_yoy"][i]),
-            ] for i, y in enumerate(years)
-        }
-    })
-    st.dataframe(fin_df, hide_index=True, use_container_width=True)
+    left_col, right_col = st.columns([1, 2.4])
 
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
+    # LEFT COLUMN: Cap Table on top, Valuation Multiples below
+    with left_col:
         st.markdown("#### Cap Table (Live)")
         cap_df = pd.DataFrame([
             ["Price (COKE)", f"${cap['price']:.2f}"],
@@ -112,10 +132,10 @@ def render_summary_block(s: dict, cap: dict) -> None:
             ["Cash ($M)", f"${cap['cash']:,.0f}"],
             ["Net Debt ($M)", f"${cap['net_debt']:,.0f}"],
             ["Enterprise Value ($M)", f"${cap['enterprise_value']:,.0f}"],
-        ], columns=["", "Value"])
-        st.dataframe(cap_df, hide_index=True, use_container_width=True)
+        ], columns=["Item", "Value"])
+        _render_styled_table(cap_df)
 
-    with col2:
+        st.markdown("")
         st.markdown("#### Valuation Multiples (Live)")
         v = s["valuation"]
         target_years = [2025, 2026, 2027, 2028, 2029]
@@ -125,7 +145,7 @@ def render_summary_block(s: dict, cap: dict) -> None:
         live_shares_static = cap["diluted_shares"]
         nci = cap["nci"]
 
-        ev_sales_row, ev_ebitda_row, pe_row = [], [], []
+        val_rows = []
         for y in target_years:
             i = idx_map[y]
             shares_y = v["shares_out"][i] if v["shares_out"][i] not in (None, 0) else live_shares_static
@@ -137,39 +157,56 @@ def render_summary_block(s: dict, cap: dict) -> None:
             ebitda = s["ebitda"][i] if i < len(s["ebitda"]) else None
             eps = s["eps"][i] if i < len(s["eps"]) else None
 
-            ev_sales_row.append(_fmt_x(ev_y / rev, 2) if rev else "")
-            ev_ebitda_row.append(_fmt_x(ev_y / ebitda, 1) if ebitda else "")
-            pe_row.append(_fmt_x(live_price / eps, 1) if eps else "")
+            val_rows.append([
+                str(y),
+                _fmt_x(ev_y / rev, 2) if rev else "",
+                _fmt_x(ev_y / ebitda, 1) if ebitda else "",
+                _fmt_x(live_price / eps, 1) if eps else "",
+            ])
+        val_df = pd.DataFrame(val_rows, columns=["Year", "EV/Sales", "EV/EBITDA", "P/E"])
+        _render_styled_table(val_df)
+        st.caption(f"Live: EV = ${live_price:.2f} × shares + net debt by year; P/E = ${live_price:.2f} / EPS.")
 
-        cols = ["Multiple"] + [str(y) for y in target_years]
-        rows = [
-            ["EV / Sales"] + ev_sales_row,
-            ["EV / EBITDA"] + ev_ebitda_row,
-            ["P / E"] + pe_row,
-        ]
-        val_df = pd.DataFrame(rows, columns=cols)
-        st.dataframe(val_df, hide_index=True, use_container_width=True)
-        st.caption(f"Multiples computed live: EV = ${live_price:.2f} × forecast shares + forecast net debt; P/E = ${live_price:.2f} / forecast EPS.")
+    # RIGHT COLUMN: Financial Summary on top, Returns Scenarios (two side-by-side) below
+    with right_col:
+        st.markdown("#### Financial Summary")
+        years = s["years"]
+        fin_df = pd.DataFrame({
+            "Metric": ["Revenue ($M)", "  YoY %", "EBITDA ($M)", "  Margin %", "  YoY %", "Adj. EPS ($)", "  YoY %"],
+            **{
+                str(y): [
+                    _fmt_money(s["revenue"][i], 0),
+                    _fmt_pct(s["revenue_yoy"][i]),
+                    _fmt_money(s["ebitda"][i], 0),
+                    _fmt_pct(s["ebitda_margin"][i]),
+                    _fmt_pct(s["ebitda_yoy"][i]),
+                    f"${s['eps'][i]:.2f}" if s["eps"][i] is not None else "",
+                    _fmt_pct(s["eps_yoy"][i]),
+                ] for i, y in enumerate(years)
+            }
+        })
+        _render_styled_table(fin_df)
 
-    st.markdown("#### 2026 YE Return Scenarios")
-    rcol1, rcol2 = st.columns(2)
-    with rcol1:
-        st.markdown("**EPS-based**")
-        eps_df = pd.DataFrame([
-            [r["label"], f"${r['metric']:.2f}", _fmt_x(r["multiple"], 0),
-             f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
-            for r in s["return_eps"]
-        ], columns=["Scenario", "EPS", "P/E", "Target", "% Return", "IRR"])
-        st.dataframe(eps_df, hide_index=True, use_container_width=True)
+        st.markdown("")
+        st.markdown("#### 2026 YE Return Scenarios")
+        rcol1, rcol2 = st.columns(2)
+        with rcol1:
+            st.markdown("**EPS-based**")
+            eps_df = pd.DataFrame([
+                [r["label"], f"${r['metric']:.2f}", _fmt_x(r["multiple"], 0),
+                 f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
+                for r in s["return_eps"]
+            ], columns=["Scenario", "EPS", "P/E", "Target", "% Return", "IRR"])
+            _render_styled_table(eps_df)
 
-    with rcol2:
-        st.markdown("**EBITDA-based**")
-        eb_df = pd.DataFrame([
-            [r["label"], f"${r['metric']:,.0f}M", _fmt_x(r["multiple"], 0),
-             f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
-            for r in s["return_ebitda"]
-        ], columns=["Scenario", "EBITDA", "EV/EBITDA", "Target", "% Return", "IRR"])
-        st.dataframe(eb_df, hide_index=True, use_container_width=True)
+        with rcol2:
+            st.markdown("**EBITDA-based**")
+            eb_df = pd.DataFrame([
+                [r["label"], f"${r['metric']:,.0f}M", _fmt_x(r["multiple"], 0),
+                 f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
+                for r in s["return_ebitda"]
+            ], columns=["Scenario", "EBITDA", "EV/EBITDA", "Target", "% Return", "IRR"])
+            _render_styled_table(eb_df)
 
 
 def render_executive_summary() -> None:

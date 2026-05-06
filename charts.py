@@ -203,6 +203,96 @@ def commodity_stack_chart(quarters: list, all_in_aluminum: list, oil_quarters: l
     )
 
 
+def forecast_cone_chart(
+    history_dates: list,
+    history_close: list,
+    current_price: float,
+    scenarios: list[dict],
+    target_date,
+) -> go.Figure:
+    """Stock chart with Bull/Base/Bear forecast cone. `scenarios` = [{label,target,ret},...] ordered Bull, Base, Bear."""
+    fig = go.Figure()
+
+    # Historical price
+    fig.add_trace(go.Scatter(
+        x=history_dates, y=history_close, mode="lines",
+        name="COKE",
+        line=dict(color=WH_NAVY, width=2.2),
+        hovertemplate="%{x|%b %d, %Y}<br>$%{y:.2f}<extra></extra>",
+    ))
+
+    # Pull current point
+    if history_dates:
+        anchor_date = history_dates[-1]
+    else:
+        from datetime import datetime
+        anchor_date = datetime.now()
+
+    bull = next(s for s in scenarios if s["label"] == "Bull")
+    base = next(s for s in scenarios if s["label"] == "Base")
+    bear = next(s for s in scenarios if s["label"] == "Bear")
+
+    # Cone fills (between Bull/Base and Base/Bear)
+    fig.add_trace(go.Scatter(
+        x=[anchor_date, target_date, target_date, anchor_date],
+        y=[current_price, bull["target"], base["target"], current_price],
+        fill="toself", fillcolor="rgba(63, 122, 78, 0.10)",
+        line=dict(color="rgba(0,0,0,0)"),
+        showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=[anchor_date, target_date, target_date, anchor_date],
+        y=[current_price, base["target"], bear["target"], current_price],
+        fill="toself", fillcolor="rgba(192, 57, 43, 0.10)",
+        line=dict(color="rgba(0,0,0,0)"),
+        showlegend=False, hoverinfo="skip",
+    ))
+
+    # Three forecast lines
+    line_specs = [
+        ("Bull", bull, WH_GREEN, "solid"),
+        ("Base", base, WH_NAVY, "dash"),
+        ("Bear", bear, WH_ACCENT, "solid"),
+    ]
+    for label, scen, color, dash in line_specs:
+        fig.add_trace(go.Scatter(
+            x=[anchor_date, target_date],
+            y=[current_price, scen["target"]],
+            mode="lines",
+            name=f"{label}: ${scen['target']:.0f} ({scen['ret']*100:+.1f}%)",
+            line=dict(color=color, width=2.5, dash=dash),
+            hovertemplate=f"<b>{label}</b><br>Target: $%{{y:.2f}}<br>Return: {scen['ret']*100:+.1f}%<extra></extra>",
+        ))
+        fig.add_annotation(
+            x=target_date, y=scen["target"],
+            text=f"<b>{label}</b><br>${scen['target']:.0f} • {scen['ret']*100:+.1f}%",
+            showarrow=False, xanchor="left", yanchor="middle",
+            font=dict(color=color, size=11),
+            xshift=8,
+        )
+
+    # Current price marker
+    fig.add_trace(go.Scatter(
+        x=[anchor_date], y=[current_price],
+        mode="markers+text",
+        name=f"Spot: ${current_price:.2f}",
+        marker=dict(color=WH_NAVY, size=12, line=dict(width=2, color="white")),
+        text=[f"${current_price:.2f}"], textposition="top center",
+        textfont=dict(color=WH_NAVY, size=11),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+
+    fig.update_yaxes(title="Price ($)", tickprefix="$")
+    fig.update_xaxes(title="")
+    return _apply_style(
+        fig,
+        f"COKE — Price History & Forecast Cone",
+        f"Spot: ${current_price:.2f} • Targets via {bull.get('horizon', '2026 YE')} return scenarios (EPS-based)",
+        height=500,
+    )
+
+
 def aluminum_sensitivity_curve(
     base_all_in_price: float,
     annual_cans_cases_mm: float,

@@ -153,6 +153,7 @@ def main() -> None:
     oil = loaders.load_oil_quarterly()
     live_price = loaders.load_live_price()
     cap = loaders.derive_cap_table(summary_base["cap_table_static"], live_price)
+    history = loaders.load_stock_history(years=2)
 
     now = datetime.now()
     today = f"{now.strftime('%B')} {now.day}, {now.year}"
@@ -172,7 +173,7 @@ def main() -> None:
     )
     st.markdown("")
 
-    sections.render_snapshot(cap)
+    sections.render_forecast_cone(history, cap, summary_base)
     st.markdown("")
 
     # Scenario selector
