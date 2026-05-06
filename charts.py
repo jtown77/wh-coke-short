@@ -294,9 +294,10 @@ def forecast_cone_chart(
         updatemenus=[dict(
             type="buttons",
             direction="right",
-            x=0, xanchor="left", y=1.10, yanchor="bottom",
+            x=0, xanchor="left",
+            y=1.0, yanchor="top",
             showactive=False,
-            pad=dict(l=0, r=0, t=4, b=4),
+            pad=dict(l=0, r=0, t=2, b=2),
             bgcolor="#fafbfc",
             bordercolor=WH_GRID,
             borderwidth=1,
@@ -310,12 +311,19 @@ def forecast_cone_chart(
         title="",
         range=_range(anchor_date - timedelta(days=365)),  # default: 1Y + cone
     )
-    return _apply_style(
+    fig = _apply_style(
         fig,
         "COKE — Price History & Forecast Cone",
         f"Spot: ${current_price:.2f} • Targets via 2026 YE return scenarios (EPS-based)",
-        height=540,
+        height=560,
     )
+    # Cone-specific overrides: room for buttons below subtitle, room for target labels on right,
+    # hide legend (redundant with annotations at the right edge of the cone)
+    fig.update_layout(
+        margin=dict(l=60, r=130, t=160, b=60),
+        showlegend=False,
+    )
+    return fig
 
 
 def aluminum_sensitivity_curve(
