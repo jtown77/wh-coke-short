@@ -21,24 +21,26 @@ def render_scenario_selector() -> str:
     import sys
     from pathlib import Path
 
+    import loaders
+
     options = ["Base", "Bull", "Bear"]
     statuses = {opt: scen.scenario_status(opt) for opt in options}
     labels = [f"{o}" + (" • TODO" if statuses[o] == "todo" else "") for o in options]
     label_to_opt = dict(zip(labels, options))
 
-    sel_col, btn_col = st.columns([4, 1])
-    with sel_col:
-        chosen_label = st.radio(
-            "Scenario",
-            options=labels,
-            horizontal=True,
-            index=0,
-            key="scenario_selector",
-            label_visibility="collapsed",
-        )
-    with btn_col:
-        if st.button("↻ Refresh", help="Re-runs the model in Excel via COM to capture latest Bull/Bear outputs."):
-            with st.spinner("Flipping scenario switch in Excel..."):
+    chosen_label = st.radio(
+        "Scenario",
+        options=labels,
+        horizontal=True,
+        index=0,
+        key="scenario_selector",
+        label_visibility="collapsed",
+    )
+
+    if loaders.LIVE_MODEL.exists():
+        if st.button("↻ Refresh Bull / Bear from live model",
+                     help="Opens Excel via COM, flips Summary!D4 to capture each scenario, writes scenarios.json."):
+            with st.spinner("Flipping scenario switch in Excel — this takes ~10 seconds..."):
                 script = Path(__file__).parent / "regenerate_scenarios.py"
                 result = subprocess.run(
                     [sys.executable, str(script)],
@@ -49,7 +51,7 @@ def render_scenario_selector() -> str:
                 st.success("Scenarios refreshed.")
                 st.rerun()
             else:
-                st.error(f"Refresh failed:\n```\n{result.stderr}\n```")
+                st.error(f"Refresh failed:\n```\n{result.stderr or result.stdout}\n```")
 
     chosen = label_to_opt[chosen_label]
     if statuses[chosen] == "todo":
@@ -111,18 +113,40 @@ def render_summary_block(s: dict, cap: dict) -> None:
         st.dataframe(cap_df, hide_index=True, use_container_width=True)
 
     with col2:
-        st.markdown("#### Valuation Multiples (WH)")
+        st.markdown("#### Valuation Multiples (Live)")
         v = s["valuation"]
         target_years = [2025, 2026, 2027, 2028, 2029]
         idx_map = {y: v["years"].index(y) for y in target_years if y in v["years"]}
+
+        live_price = cap["price"]
+        live_shares_static = cap["diluted_shares"]
+        nci = cap["nci"]
+
+        ev_sales_row, ev_ebitda_row, pe_row = [], [], []
+        for y in target_years:
+            i = idx_map[y]
+            shares_y = v["shares_out"][i] if v["shares_out"][i] not in (None, 0) else live_shares_static
+            net_debt_y = v["net_debt"][i] if v["net_debt"][i] is not None else cap["net_debt"]
+            mkt_cap_y = live_price * shares_y
+            ev_y = mkt_cap_y + net_debt_y + nci
+
+            rev = s["revenue"][i] if i < len(s["revenue"]) else None
+            ebitda = s["ebitda"][i] if i < len(s["ebitda"]) else None
+            eps = s["eps"][i] if i < len(s["eps"]) else None
+
+            ev_sales_row.append(_fmt_x(ev_y / rev, 2) if rev else "")
+            ev_ebitda_row.append(_fmt_x(ev_y / ebitda, 1) if ebitda else "")
+            pe_row.append(_fmt_x(live_price / eps, 1) if eps else "")
+
         cols = ["Multiple"] + [str(y) for y in target_years]
         rows = [
-            ["EV / Sales"] + [_fmt_x(v["ev_sales"][idx_map[y]], 2) if v["ev_sales"][idx_map[y]] else "" for y in target_years],
-            ["EV / EBITDA"] + [_fmt_x(v["ev_ebitda"][idx_map[y]], 1) if v["ev_ebitda"][idx_map[y]] else "" for y in target_years],
-            ["P / E"] + [_fmt_x(v["pe"][idx_map[y]], 1) if v["pe"][idx_map[y]] else "" for y in target_years],
+            ["EV / Sales"] + ev_sales_row,
+            ["EV / EBITDA"] + ev_ebitda_row,
+            ["P / E"] + pe_row,
         ]
         val_df = pd.DataFrame(rows, columns=cols)
         st.dataframe(val_df, hide_index=True, use_container_width=True)
+        st.caption(f"Multiples computed live: EV = ${live_price:.2f} × forecast shares + forecast net debt; P/E = ${live_price:.2f} / forecast EPS.")
 
     st.markdown("#### 2026 YE Return Scenarios")
     rcol1, rcol2 = st.columns(2)
