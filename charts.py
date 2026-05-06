@@ -275,9 +275,28 @@ def forecast_cone_chart(
     ))
 
     # Custom range buttons (updatemenus supports relayout; rangeselector doesn't)
+    def _y_range(start_dt):
+        # Visible history Y values
+        def _strip(d):
+            return d.replace(tzinfo=None) if hasattr(d, "tzinfo") and d.tzinfo else d
+        s = _strip(start_dt)
+        e = _strip(target_date)
+        hist_y = [c for d, c in zip(history_dates, history_close)
+                  if s <= _strip(d) <= e and c is not None and c > 0]
+        cone_y = [current_price, bull["target"], base["target"], bear["target"]]
+        all_y = hist_y + cone_y
+        if not all_y:
+            return None
+        y_min, y_max = min(all_y), max(all_y)
+        pad = max((y_max - y_min) * 0.05, 1.0)
+        return [max(0, y_min - pad), y_max + pad]
+
     def _btn_args(start_dt):
-        return [{"xaxis.range": [start_dt.isoformat(), target_date.isoformat()],
-                 "yaxis.autorange": True}]
+        relayout = {"xaxis.range": [start_dt.isoformat(), target_date.isoformat()]}
+        yr = _y_range(start_dt)
+        if yr is not None:
+            relayout["yaxis.range"] = yr
+        return [relayout]
 
     earliest = history_dates[0] if history_dates else anchor_date
     range_buttons = [
@@ -308,10 +327,13 @@ def forecast_cone_chart(
         )]
     )
 
-    fig.update_yaxes(title="Price ($)", tickprefix="$")
+    default_start = anchor_date - timedelta(days=365)
+    default_yr = _y_range(default_start)
+    fig.update_yaxes(title="Price ($)", tickprefix="$",
+                     range=default_yr if default_yr else None)
     fig.update_xaxes(
         title="",
-        range=_range(anchor_date - timedelta(days=365)),  # default: 1Y + cone
+        range=[default_start.isoformat(), target_date.isoformat()],
     )
     fig = _apply_style(
         fig,
