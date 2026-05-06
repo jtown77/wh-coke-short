@@ -274,7 +274,7 @@ def forecast_cone_chart(
         showlegend=False,
     ))
 
-    # Range-selector buttons (keep cone in view by anchoring right edge to target_date)
+    # Custom range buttons (updatemenus supports relayout; rangeselector doesn't)
     def _range(start_dt):
         return [start_dt.isoformat(), target_date.isoformat()]
 
@@ -290,24 +290,31 @@ def forecast_cone_chart(
         dict(label="MAX", method="relayout", args=[{"xaxis.range": _range(earliest)}]),
     ]
 
+    fig.update_layout(
+        updatemenus=[dict(
+            type="buttons",
+            direction="right",
+            x=0, xanchor="left", y=1.10, yanchor="bottom",
+            showactive=False,
+            pad=dict(l=0, r=0, t=4, b=4),
+            bgcolor="#fafbfc",
+            bordercolor=WH_GRID,
+            borderwidth=1,
+            font=dict(size=11, color=WH_NAVY),
+            buttons=range_buttons,
+        )]
+    )
+
     fig.update_yaxes(title="Price ($)", tickprefix="$")
     fig.update_xaxes(
         title="",
-        rangeselector=dict(
-            buttons=range_buttons,
-            x=0, xanchor="left", y=1.10, yanchor="bottom",
-            bgcolor="#fafbfc", bordercolor=WH_GRID, borderwidth=1,
-            font=dict(size=11, color=WH_NAVY),
-            activecolor=WH_NAVY,
-        ),
-        # Default view: 1Y of history + full cone
-        range=_range(anchor_date - timedelta(days=365)),
+        range=_range(anchor_date - timedelta(days=365)),  # default: 1Y + cone
     )
     return _apply_style(
         fig,
         "COKE — Price History & Forecast Cone",
         f"Spot: ${current_price:.2f} • Targets via 2026 YE return scenarios (EPS-based)",
-        height=520,
+        height=540,
     )
 
 
