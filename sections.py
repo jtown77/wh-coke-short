@@ -188,10 +188,9 @@ def render_summary_block(s: dict, cap: dict) -> None:
         _render_styled_table(fin_df)
 
         st.markdown("")
-        st.markdown("#### 2026 YE Return Scenarios")
+        st.markdown("#### 2026 YE Return Scenarios — EPS- and EBITDA-based")
         rcol1, rcol2 = st.columns(2)
         with rcol1:
-            st.markdown("**EPS-based**")
             eps_df = pd.DataFrame([
                 [r["label"], f"${r['metric']:.2f}", _fmt_x(r["multiple"], 0),
                  f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]
@@ -200,7 +199,6 @@ def render_summary_block(s: dict, cap: dict) -> None:
             _render_styled_table(eps_df)
 
         with rcol2:
-            st.markdown("**EBITDA-based**")
             eb_df = pd.DataFrame([
                 [r["label"], f"${r['metric']:,.0f}M", _fmt_x(r["multiple"], 0),
                  f"${r['target']:.2f}", _fmt_pct(r["ret"]), _fmt_pct(r["irr"])]

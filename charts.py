@@ -211,9 +211,10 @@ def forecast_cone_chart(
     target_date,
 ) -> go.Figure:
     """Stock chart with Bull/Base/Bear forecast cone. `scenarios` = [{label,target,ret},...] ordered Bull, Base, Bear."""
+    from datetime import datetime, timedelta
+
     fig = go.Figure()
 
-    # Historical price
     fig.add_trace(go.Scatter(
         x=history_dates, y=history_close, mode="lines",
         name="COKE",
@@ -221,34 +222,25 @@ def forecast_cone_chart(
         hovertemplate="%{x|%b %d, %Y}<br>$%{y:.2f}<extra></extra>",
     ))
 
-    # Pull current point
     if history_dates:
         anchor_date = history_dates[-1]
     else:
-        from datetime import datetime
         anchor_date = datetime.now()
 
     bull = next(s for s in scenarios if s["label"] == "Bull")
     base = next(s for s in scenarios if s["label"] == "Base")
     bear = next(s for s in scenarios if s["label"] == "Bear")
 
-    # Cone fills (between Bull/Base and Base/Bear)
+    # Single Wolf Hill blue cone fill — outer envelope (Bull-to-Bear) shaded once
     fig.add_trace(go.Scatter(
         x=[anchor_date, target_date, target_date, anchor_date],
-        y=[current_price, bull["target"], base["target"], current_price],
-        fill="toself", fillcolor="rgba(63, 122, 78, 0.10)",
-        line=dict(color="rgba(0,0,0,0)"),
-        showlegend=False, hoverinfo="skip",
-    ))
-    fig.add_trace(go.Scatter(
-        x=[anchor_date, target_date, target_date, anchor_date],
-        y=[current_price, base["target"], bear["target"], current_price],
-        fill="toself", fillcolor="rgba(192, 57, 43, 0.10)",
+        y=[current_price, bull["target"], bear["target"], current_price],
+        fill="toself", fillcolor="rgba(48, 63, 85, 0.12)",
         line=dict(color="rgba(0,0,0,0)"),
         showlegend=False, hoverinfo="skip",
     ))
 
-    # Three forecast lines
+    # Three forecast lines (kept distinct so each scenario reads)
     line_specs = [
         ("Bull", bull, WH_GREEN, "solid"),
         ("Base", base, WH_NAVY, "dash"),
@@ -271,7 +263,6 @@ def forecast_cone_chart(
             xshift=8,
         )
 
-    # Current price marker
     fig.add_trace(go.Scatter(
         x=[anchor_date], y=[current_price],
         mode="markers+text",
@@ -283,13 +274,40 @@ def forecast_cone_chart(
         showlegend=False,
     ))
 
+    # Range-selector buttons (keep cone in view by anchoring right edge to target_date)
+    def _range(start_dt):
+        return [start_dt.isoformat(), target_date.isoformat()]
+
+    earliest = history_dates[0] if history_dates else anchor_date
+    range_buttons = [
+        dict(label="1D",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=1))}]),
+        dict(label="5D",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=5))}]),
+        dict(label="1M",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=31))}]),
+        dict(label="6M",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=183))}]),
+        dict(label="YTD", method="relayout", args=[{"xaxis.range": _range(datetime(anchor_date.year, 1, 1))}]),
+        dict(label="1Y",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=365))}]),
+        dict(label="5Y",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=365 * 5))}]),
+        dict(label="MAX", method="relayout", args=[{"xaxis.range": _range(earliest)}]),
+    ]
+
     fig.update_yaxes(title="Price ($)", tickprefix="$")
-    fig.update_xaxes(title="")
+    fig.update_xaxes(
+        title="",
+        rangeselector=dict(
+            buttons=range_buttons,
+            x=0, xanchor="left", y=1.10, yanchor="bottom",
+            bgcolor="#fafbfc", bordercolor=WH_GRID, borderwidth=1,
+            font=dict(size=11, color=WH_NAVY),
+            activecolor=WH_NAVY,
+        ),
+        # Default view: 1Y of history + full cone
+        range=_range(anchor_date - timedelta(days=365)),
+    )
     return _apply_style(
         fig,
-        f"COKE — Price History & Forecast Cone",
-        f"Spot: ${current_price:.2f} • Targets via {bull.get('horizon', '2026 YE')} return scenarios (EPS-based)",
-        height=500,
+        "COKE — Price History & Forecast Cone",
+        f"Spot: ${current_price:.2f} • Targets via 2026 YE return scenarios (EPS-based)",
+        height=520,
     )
 
 

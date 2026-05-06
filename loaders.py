@@ -181,10 +181,10 @@ def load_live_price() -> float:
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def load_stock_history(years: int = 2) -> dict:
-    """Daily close history for COKE over the past N years from yfinance."""
+def load_stock_history(period: str = "max") -> dict:
+    """Daily close history for COKE from yfinance. period: 1y, 5y, max, etc."""
     t = yf.Ticker(TICKER)
-    hist = t.history(period=f"{years}y", interval="1d")
+    hist = t.history(period=period, interval="1d")
     if hist.empty:
         return {"dates": [], "close": []}
     return {
