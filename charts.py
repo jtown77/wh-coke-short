@@ -4,39 +4,52 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 
-WH_NAVY = "#303f55"
-WH_NAVY_LIGHT = "#5e6e85"
-WH_ACCENT = "#c0392b"
-WH_AMBER = "#d49a3a"
-WH_GREEN = "#3f7a4e"
-WH_GRAY = "#8b95a3"
-WH_GRAY_LIGHT = "#c7ccd3"
-WH_BG = "#ffffff"
-WH_GRID = "#eef0f3"
+WH_NAVY = "#303F55"
+WH_NAVY_LIGHT = "#5E6E85"
+WH_ACCENT = "#C0392B"
+WH_AMBER = "#D49A3A"
+WH_GREEN = "#3F7A4E"
+WH_GRAY = "#6B6B6B"
+WH_GRAY_LIGHT = "#C7CCD3"
+WH_INK = "#1A1A1A"
+WH_BG = "#FFFFFF"
+WH_GRID = "#E5E0D8"
 
 
 def _apply_style(fig: go.Figure, title: str, subtitle: str | None = None, height: int = 460) -> go.Figure:
     fig.update_layout(
         title=dict(
-            text=f"<b>{title}</b>" + (f"<br><span style='font-size:13px;color:{WH_GRAY};font-weight:400'>{subtitle}</span>" if subtitle else ""),
-            font=dict(size=20, color=WH_NAVY, family="Source Serif Pro, Georgia, serif"),
+            text=f"<b>{title}</b>" + (f"<br><span style='font-size:13px;color:{WH_GRAY};font-weight:400;font-family:Inter,sans-serif'>{subtitle}</span>" if subtitle else ""),
+            font=dict(size=22, color=WH_INK, family="Source Serif 4, Georgia, serif"),
             x=0.0, xanchor="left", y=0.96, yanchor="top",
             pad=dict(t=10, b=10),
         ),
         paper_bgcolor=WH_BG,
         plot_bgcolor=WH_BG,
-        font=dict(family="Source Sans Pro, sans-serif", color="#1a2230", size=12),
-        margin=dict(l=60, r=30, t=110 if subtitle else 80, b=60),
+        font=dict(family="Inter, sans-serif", color=WH_INK, size=12),
+        margin=dict(l=70, r=40, t=110 if subtitle else 80, b=70),
         height=height,
         legend=dict(
             orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0,
-            bgcolor="rgba(0,0,0,0)", font=dict(size=11),
+            bgcolor="rgba(0,0,0,0)", font=dict(size=11, family="Inter, sans-serif"),
         ),
         hovermode="closest",
+        dragmode=False,
     )
-    fig.update_xaxes(showgrid=True, gridcolor=WH_GRID, zeroline=False, linecolor=WH_GRID)
-    fig.update_yaxes(showgrid=True, gridcolor=WH_GRID, zeroline=True, zerolinecolor=WH_GRAY_LIGHT, zerolinewidth=1, linecolor=WH_GRID)
+    fig.update_xaxes(showgrid=True, gridcolor=WH_GRID, zeroline=False, linecolor=WH_GRID, fixedrange=True)
+    fig.update_yaxes(showgrid=True, gridcolor=WH_GRID, zeroline=True, zerolinecolor=WH_GRAY_LIGHT, zerolinewidth=1, linecolor=WH_GRID, fixedrange=True)
     return fig
+
+
+# Plotly config to keep charts non-interactive (just hover tooltips, pointer cursor)
+STATIC_CONFIG = {
+    "displayModeBar": False,
+    "scrollZoom": False,
+    "doubleClick": False,
+    "showAxisDragHandles": False,
+    "showTips": False,
+    "staticPlot": False,  # keep hover, just no drag/zoom
+}
 
 
 def _filter_history(values: list, quarters: list, end_label: str = "Q4 25") -> tuple[list, list]:
@@ -102,14 +115,16 @@ def elasticity_scatter(price_yoy: list, volume_yoy: list, quarter_labels: list, 
             hoverinfo="skip",
         ))
 
-    fig.update_xaxes(title="Avg Sales / Case YoY %", ticksuffix="%")
+    fig.update_xaxes(title=dict(text="Avg Sales / Case YoY %", standoff=18), ticksuffix="%")
     fig.update_yaxes(title="Case Volume YoY %", ticksuffix="%")
-    return _apply_style(
+    fig = _apply_style(
         fig,
         f"Figure {figure_num}. {segment} Beverages — Demand Elasticity",
         f"Quarterly Price vs. Volume YoY % • {labels[0]} – {labels[-1]}",
         height=520,
     )
+    fig.update_layout(margin=dict(l=70, r=40, t=110, b=95))
+    return fig
 
 
 def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
@@ -123,23 +138,11 @@ def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
             break
     n = len(quarters)
 
-    rev = seg["total_revenue"][:n]
-    cases = seg["total_cases"][:n]
-    avg_price = [(r / c) if (r is not None and c not in (None, 0)) else None for r, c in zip(rev, cases)]
-    total_price_yoy = []
-    for i, p in enumerate(avg_price):
-        if i < 4 or p is None or avg_price[i - 4] in (None, 0):
-            total_price_yoy.append(None)
-        else:
-            total_price_yoy.append(p / avg_price[i - 4] - 1)
-
     series = [
         ("Sparkling Volume", seg["sparkling_volume_yoy"][:n], WH_NAVY, "solid"),
         ("Sparkling Price", seg["sparkling_price_yoy"][:n], WH_NAVY, "dash"),
         ("Still Volume", seg["still_volume_yoy"][:n], WH_ACCENT, "solid"),
         ("Still Price", seg["still_price_yoy"][:n], WH_ACCENT, "dash"),
-        ("Total Volume", seg["total_cases_yoy"][:n], WH_GRAY, "solid"),
-        ("Total Price (derived)", total_price_yoy, WH_GRAY, "dash"),
     ]
 
     fig = go.Figure()
@@ -157,7 +160,7 @@ def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
     return _apply_style(
         fig,
         f"Figure {figure_num}. Quarterly Price & Volume YoY Growth",
-        "Sparkling, Still, Total • Volume (solid) vs Price (dashed) • historicals through Q4 2025",
+        "Sparkling and Still • Volume (solid) vs Price (dashed) • historicals through Q4 2025",
         height=520,
     )
 
@@ -209,51 +212,46 @@ def forecast_cone_chart(
     current_price: float,
     scenarios: list[dict],
     target_date,
-    intraday_1d: dict | None = None,
-    intraday_5d: dict | None = None,
-    intraday_1m: dict | None = None,
 ) -> go.Figure:
-    """Two-panel chart: history (left, resizable) + cone (right, fixed). Spot always at the panel boundary."""
+    """Two-panel chart: 1-year daily history (left) + Bull/Base/Bear cone (right)."""
     from datetime import datetime, timedelta
 
     from plotly.subplots import make_subplots
 
-    fig = make_subplots(
-        rows=1, cols=2,
-        shared_yaxes=True,
-        horizontal_spacing=0.0,
-        column_widths=[0.78, 0.22],
-    )
+    def _strip(d):
+        return d.replace(tzinfo=None) if hasattr(d, "tzinfo") and d.tzinfo else d
 
-    if history_dates:
-        anchor_date = history_dates[-1]
-    else:
-        anchor_date = datetime.now()
+    history_dates_n = [_strip(d) for d in history_dates]
+    target_date = _strip(target_date)
+
+    # Filter to last 365 days
+    anchor_date = history_dates_n[-1] if history_dates_n else datetime.now()
+    one_year_ago = anchor_date - timedelta(days=365)
+    paired = [(d, c) for d, c in zip(history_dates_n, history_close)
+              if d >= one_year_ago and c is not None and c > 0]
+    hist_x = [p[0] for p in paired]
+    hist_y = [p[1] for p in paired]
 
     bull = next(s for s in scenarios if s["label"] == "Bull")
     base = next(s for s in scenarios if s["label"] == "Base")
     bear = next(s for s in scenarios if s["label"] == "Bear")
 
-    # LEFT panel: daily history (visible by default)
+    fig = make_subplots(
+        rows=1, cols=2,
+        shared_yaxes=False,
+        horizontal_spacing=0.0,
+        column_widths=[0.78, 0.22],
+    )
+
+    # LEFT panel: 1-year daily history
     fig.add_trace(go.Scatter(
-        x=history_dates, y=history_close, mode="lines",
-        name="COKE",
+        x=hist_x, y=hist_y, mode="lines",
         line=dict(color=WH_NAVY, width=2.2),
         hovertemplate="%{x|%b %d, %Y}<br>$%{y:.2f}<extra></extra>",
-        showlegend=False, visible=True,
+        showlegend=False,
     ), row=1, col=1)
 
-    # LEFT panel: intraday traces (hidden by default; toggled per button)
-    intraday_specs = [intraday_1d or {}, intraday_5d or {}, intraday_1m or {}]
-    for spec in intraday_specs:
-        fig.add_trace(go.Scatter(
-            x=spec.get("dates", []), y=spec.get("close", []), mode="lines",
-            line=dict(color=WH_NAVY, width=2.2),
-            hovertemplate="%{x|%b %d %I:%M %p}<br>$%{y:.2f}<extra></extra>",
-            showlegend=False, visible=False,
-        ), row=1, col=1)
-
-    # RIGHT panel: cone fill (single light WH navy envelope)
+    # RIGHT panel: cone fill envelope
     fig.add_trace(go.Scatter(
         x=[anchor_date, target_date, target_date, anchor_date],
         y=[current_price, bull["target"], bear["target"], current_price],
@@ -262,7 +260,7 @@ def forecast_cone_chart(
         showlegend=False, hoverinfo="skip",
     ), row=1, col=2)
 
-    # RIGHT panel: three scenario lines + annotations
+    # RIGHT panel: three scenario lines + labels
     line_specs = [
         ("Bull", bull, WH_GREEN, "solid"),
         ("Base", base, WH_NAVY, "dash"),
@@ -279,113 +277,65 @@ def forecast_cone_chart(
         ), row=1, col=2)
         fig.add_annotation(
             x=target_date, y=scen["target"],
-            xref="x2", yref="y",
+            xref="x2", yref="y2",
             text=f"<b>{label}</b><br>${scen['target']:.0f} • {scen['ret']*100:+.1f}%",
             showarrow=False, xanchor="left", yanchor="middle",
             font=dict(color=color, size=11),
             xshift=8,
         )
 
-    # Spot marker — at the panel boundary (start of right panel = anchor_date)
+    # Spot marker at the panel boundary
     fig.add_trace(go.Scatter(
         x=[anchor_date], y=[current_price],
-        mode="markers+text",
-        marker=dict(color=WH_NAVY, size=12, line=dict(width=2, color="white")),
-        text=[f"${current_price:.2f}"], textposition="top center",
-        textfont=dict(color=WH_NAVY, size=11),
-        hoverinfo="skip",
+        mode="markers",
+        marker=dict(color=WH_NAVY, size=11, line=dict(width=2, color="white")),
+        hovertemplate=f"Spot: ${current_price:.2f}<extra></extra>",
         showlegend=False,
     ), row=1, col=2)
 
-    SPOT_FRACTION = 0.55  # spot lands ~55% from bottom (within the 40-60% band)
-
-    def _strip(d):
-        return d.replace(tzinfo=None) if hasattr(d, "tzinfo") and d.tzinfo else d
-
-    def _yrange_from_data(dates, closes, start_dt):
-        s = _strip(start_dt)
-        e = _strip(anchor_date)
-        hist_y = [c for d, c in zip(dates, closes)
-                  if s <= _strip(d) <= e and c is not None and c > 0]
-        cone_lows = [bear["target"], base["target"]]
-        y_min = max(0.0, min(hist_y + cone_lows) * 0.92) if (hist_y or cone_lows) else 0.0
-        y_max = (current_price - y_min) / SPOT_FRACTION + y_min
-        if hist_y:
-            y_max = max(y_max, max(hist_y) * 1.05)
-        y_max = max(y_max, bull["target"] * 1.05)
-        return [y_min, y_max]
-
-    # Trace visibility patterns (9 traces total: daily + 3 intraday + cone fill + 3 lines + spot)
-    DAILY = [True, False, False, False, True, True, True, True, True]
-    INTRA_1D = [False, True, False, False, True, True, True, True, True]
-    INTRA_5D = [False, False, True, False, True, True, True, True, True]
-    INTRA_1M = [False, False, False, True, True, True, True, True, True]
-
-    def _earliest(dates):
-        return dates[0] if dates else anchor_date
-
-    def _btn(label, visibility, dates, closes, start_dt):
-        return dict(
-            label=label, method="update",
-            args=[
-                {"visible": visibility},
-                {"xaxis.range": [start_dt.isoformat(), anchor_date.isoformat()],
-                 "yaxis.range": _yrange_from_data(dates, closes, start_dt)},
-            ],
-        )
-
-    intra_1d_d = (intraday_1d or {}).get("dates", [])
-    intra_1d_c = (intraday_1d or {}).get("close", [])
-    intra_5d_d = (intraday_5d or {}).get("dates", [])
-    intra_5d_c = (intraday_5d or {}).get("close", [])
-    intra_1m_d = (intraday_1m or {}).get("dates", [])
-    intra_1m_c = (intraday_1m or {}).get("close", [])
-
-    range_buttons = [
-        _btn("1D",  INTRA_1D, intra_1d_d, intra_1d_c, _earliest(intra_1d_d) if intra_1d_d else (anchor_date - timedelta(days=1))),
-        _btn("5D",  INTRA_5D, intra_5d_d, intra_5d_c, _earliest(intra_5d_d) if intra_5d_d else (anchor_date - timedelta(days=5))),
-        _btn("1M",  INTRA_1M, intra_1m_d, intra_1m_c, _earliest(intra_1m_d) if intra_1m_d else (anchor_date - timedelta(days=31))),
-        _btn("6M",  DAILY, history_dates, history_close, anchor_date - timedelta(days=183)),
-        _btn("YTD", DAILY, history_dates, history_close, datetime(anchor_date.year, 1, 1)),
-        _btn("1Y",  DAILY, history_dates, history_close, anchor_date - timedelta(days=365)),
-        _btn("5Y",  DAILY, history_dates, history_close, anchor_date - timedelta(days=365 * 5)),
-        _btn("MAX", DAILY, history_dates, history_close, _earliest(history_dates)),
-    ]
-
-    fig.update_layout(
-        updatemenus=[dict(
-            type="buttons",
-            direction="right",
-            x=0, xanchor="left",
-            y=1.0, yanchor="top",
-            showactive=True,
-            pad=dict(l=4, r=4, t=4, b=4),
-            bgcolor="#f1f3f4",
-            bordercolor="#dadce0",
-            borderwidth=0,
-            font=dict(size=11, color="#5f6368", family="Roboto, Arial, sans-serif"),
-            buttons=range_buttons,
-        )]
+    # Yahoo-Finance-style current-price tag at the spot
+    fig.add_annotation(
+        x=anchor_date, y=current_price,
+        xref="x2", yref="y2",
+        text=f"<b>${current_price:.2f}</b>",
+        showarrow=False,
+        xanchor="left", yanchor="middle",
+        xshift=6,
+        bgcolor=WH_NAVY, bordercolor=WH_NAVY, borderwidth=1, borderpad=4,
+        font=dict(color="white", size=11, family="Source Sans Pro, sans-serif"),
     )
 
-    default_start = anchor_date - timedelta(days=365)
-    default_yr = _yrange_from_data(history_dates, history_close, default_start)
-    fig.update_yaxes(title="Price ($)", tickprefix="$", range=default_yr, row=1, col=1,
-                     showline=False)
-    fig.update_yaxes(showticklabels=False, showline=False, range=default_yr, row=1, col=2)
-    fig.update_xaxes(title="", range=[default_start.isoformat(), anchor_date.isoformat()],
-                     row=1, col=1, showline=False)
+    # Unified y-range across both panels so gridlines align visually.
+    # Range covers everything the user needs to see: 1Y price history + Bear/Bull targets.
+    if hist_y:
+        all_ys = hist_y + [current_price, bull["target"], bear["target"]]
+    else:
+        all_ys = [current_price, bull["target"], bear["target"]]
+    y_min_data, y_max_data = min(all_ys), max(all_ys)
+    pad = max((y_max_data - y_min_data) * 0.06, 1.0)
+    unified_y_range = [max(0.0, y_min_data - pad), y_max_data + pad]
+
+    fig.update_yaxes(title="Price ($)", tickprefix="$", range=unified_y_range,
+                     row=1, col=1, showline=False,
+                     showgrid=True, gridcolor=WH_GRID)
+    fig.update_yaxes(showticklabels=False, showline=False, range=unified_y_range,
+                     row=1, col=2,
+                     showgrid=True, gridcolor=WH_GRID, matches="y")
+    fig.update_xaxes(title="", range=[one_year_ago.isoformat(), anchor_date.isoformat()],
+                     row=1, col=1, showline=False,
+                     showgrid=True, gridcolor=WH_GRID)
     fig.update_xaxes(title="", range=[anchor_date, target_date], showticklabels=False,
-                     showline=False, row=1, col=2)
+                     showline=False, row=1, col=2,
+                     showgrid=True, gridcolor=WH_GRID)
 
     fig = _apply_style(
         fig,
-        "COKE — Price History & Forecast Cone",
+        "COKE — 1-Year Price History & Forecast Cone",
         f"Spot: ${current_price:.2f} • Targets via 2026 YE return scenarios (EPS-based)",
-        height=560,
+        height=520,
     )
     fig.update_layout(
-        margin=dict(l=60, r=130, t=160, b=60),
+        margin=dict(l=60, r=130, t=110, b=60),
         showlegend=False,
     )
     return fig
