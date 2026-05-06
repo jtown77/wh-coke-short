@@ -275,33 +275,35 @@ def forecast_cone_chart(
     ))
 
     # Custom range buttons (updatemenus supports relayout; rangeselector doesn't)
-    def _range(start_dt):
-        return [start_dt.isoformat(), target_date.isoformat()]
+    def _btn_args(start_dt):
+        return [{"xaxis.range": [start_dt.isoformat(), target_date.isoformat()],
+                 "yaxis.autorange": True}]
 
     earliest = history_dates[0] if history_dates else anchor_date
     range_buttons = [
-        dict(label="1D",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=1))}]),
-        dict(label="5D",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=5))}]),
-        dict(label="1M",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=31))}]),
-        dict(label="6M",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=183))}]),
-        dict(label="YTD", method="relayout", args=[{"xaxis.range": _range(datetime(anchor_date.year, 1, 1))}]),
-        dict(label="1Y",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=365))}]),
-        dict(label="5Y",  method="relayout", args=[{"xaxis.range": _range(anchor_date - timedelta(days=365 * 5))}]),
-        dict(label="MAX", method="relayout", args=[{"xaxis.range": _range(earliest)}]),
+        dict(label="1D",  method="relayout", args=_btn_args(anchor_date - timedelta(days=1))),
+        dict(label="5D",  method="relayout", args=_btn_args(anchor_date - timedelta(days=5))),
+        dict(label="1M",  method="relayout", args=_btn_args(anchor_date - timedelta(days=31))),
+        dict(label="6M",  method="relayout", args=_btn_args(anchor_date - timedelta(days=183))),
+        dict(label="YTD", method="relayout", args=_btn_args(datetime(anchor_date.year, 1, 1))),
+        dict(label="1Y",  method="relayout", args=_btn_args(anchor_date - timedelta(days=365))),
+        dict(label="5Y",  method="relayout", args=_btn_args(anchor_date - timedelta(days=365 * 5))),
+        dict(label="MAX", method="relayout", args=_btn_args(earliest)),
     ]
 
+    # Google Finance-style: subtle pills, gray text, active highlighted
     fig.update_layout(
         updatemenus=[dict(
             type="buttons",
             direction="right",
             x=0, xanchor="left",
             y=1.0, yanchor="top",
-            showactive=False,
-            pad=dict(l=0, r=0, t=2, b=2),
-            bgcolor="#fafbfc",
-            bordercolor=WH_GRID,
-            borderwidth=1,
-            font=dict(size=11, color=WH_NAVY),
+            showactive=True,
+            pad=dict(l=4, r=4, t=4, b=4),
+            bgcolor="#f1f3f4",
+            bordercolor="#dadce0",
+            borderwidth=0,
+            font=dict(size=11, color="#5f6368", family="Roboto, Arial, sans-serif"),
             buttons=range_buttons,
         )]
     )
