@@ -154,11 +154,8 @@ def main() -> None:
     live_price = loaders.load_live_price()
     cap = loaders.derive_cap_table(summary_base["cap_table_static"], live_price)
 
-    today = datetime.now().strftime("%B %-d, %Y") if hasattr(datetime, "now") else "Today"
-    try:
-        today = datetime.now().strftime("%B %d, %Y").replace(" 0", " ")
-    except Exception:
-        today = "Today"
+    now = datetime.now()
+    today = f"{now.strftime('%B')} {now.day}, {now.year}"
 
     st.markdown(
         f'<div class="brand-bar"><div class="left">WOLF HILL CAPITAL MANAGEMENT</div>'

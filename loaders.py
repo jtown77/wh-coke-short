@@ -7,16 +7,43 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
-MODEL_FILE = Path(__file__).parent / "data" / "WH COKE Model v04.29.2026.xlsx"
+import shutil
+import tempfile
+
+LIVE_MODEL = Path(
+    r"C:\Users\JoshuaLehrman\Wolf Hill Capital Management LLC\Shared - Documents\Josh\COKE\Models\WH COKE Model v04.29.2026.xlsx"
+)
+BUNDLED_MODEL = Path(__file__).parent / "data" / "WH COKE Model v04.29.2026.xlsx"
 TICKER = "COKE"
 
 
+def _model_path() -> Path:
+    return LIVE_MODEL if LIVE_MODEL.exists() else BUNDLED_MODEL
+
+
+def model_mtime() -> float:
+    return _model_path().stat().st_mtime
+
+
 def _read_sheet(sheet_name: str) -> pd.DataFrame:
-    return pd.read_excel(MODEL_FILE, sheet_name=sheet_name, header=None, engine="openpyxl")
+    src = _model_path()
+    if src == LIVE_MODEL:
+        # Copy to temp to avoid Excel file lock when the user has the workbook open
+        dst = Path(tempfile.gettempdir()) / "coke_model_live_snapshot.xlsx"
+        try:
+            shutil.copy2(src, dst)
+            return pd.read_excel(dst, sheet_name=sheet_name, header=None, engine="openpyxl")
+        except Exception:
+            return pd.read_excel(BUNDLED_MODEL, sheet_name=sheet_name, header=None, engine="openpyxl")
+    return pd.read_excel(src, sheet_name=sheet_name, header=None, engine="openpyxl")
+
+
+def load_summary() -> dict:
+    return _load_summary_cached(model_mtime())
 
 
 @st.cache_data(show_spinner=False)
-def load_summary(_mtime: float = 0.0) -> dict:
+def _load_summary_cached(_mtime: float) -> dict:
     df = _read_sheet("Summary")
     years = list(range(2022, 2030))
     cols_g_to_n = list(range(6, 14))
@@ -79,8 +106,12 @@ def load_summary(_mtime: float = 0.0) -> dict:
     }
 
 
+def load_segment_build() -> dict:
+    return _load_segment_build_cached(model_mtime())
+
+
 @st.cache_data(show_spinner=False)
-def load_segment_build(_mtime: float = 0.0) -> dict:
+def _load_segment_build_cached(_mtime: float) -> dict:
     df = _read_sheet("Segment Build")
     quarter_labels = [df.iat[4, c] for c in range(5, 61)]
 
@@ -103,8 +134,12 @@ def load_segment_build(_mtime: float = 0.0) -> dict:
     }
 
 
+def load_cogs_sensitivity() -> dict:
+    return _load_cogs_sensitivity_cached(model_mtime())
+
+
 @st.cache_data(show_spinner=False)
-def load_cogs_sensitivity(_mtime: float = 0.0) -> dict:
+def _load_cogs_sensitivity_cached(_mtime: float) -> dict:
     df = _read_sheet("COGS Sensitivity")
     quarter_labels = [df.iat[4, c] for c in range(5, 61)]
 

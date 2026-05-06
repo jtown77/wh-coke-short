@@ -5,3 +5,4 @@ plotly>=5.18
 yfinance>=0.2
 scipy>=1.11
 numpy>=1.26
+pywin32>=306; sys_platform == "win32"

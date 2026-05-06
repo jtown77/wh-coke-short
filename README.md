@@ -23,9 +23,22 @@ Open `http://localhost:8501`. Enter the password from `.streamlit/secrets.toml`.
 
 ## Updating the model
 
-1. Drop the new `.xlsx` into `data/`.
-2. Update the `MODEL_FILE` constant in `loaders.py` if the filename changed.
-3. Commit and push — Streamlit Cloud auto-redeploys.
+**Local dev:** the app reads from the live model at
+`...\COKE\Models\WH COKE Model v04.29.2026.xlsx` directly. Save in Excel → reload the
+browser → Base scenario reflects new numbers automatically (mtime-keyed cache).
+
+**Bull/Bear scenarios** are captured separately because openpyxl can't recalculate
+formulas. After you change Bull/Bear assumptions in the model:
+
+1. Click the **↻ Refresh** button next to the scenario selector, OR
+2. From CLI: `python regenerate_scenarios.py`
+
+That uses Excel COM (win32com) to flip `Summary!D4` to "1 - Bull" / "3 - Bear",
+recalculate, capture the Summary outputs, and write them to `data/scenarios.json`.
+Excel closes without saving — model file is never modified.
+
+**Deployed to Streamlit Cloud:** uses the bundled copy in `data/`. To push updated
+numbers, copy the live model into `data/`, commit, push.
 
 ## Structure
 

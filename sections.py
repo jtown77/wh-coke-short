@@ -17,22 +17,43 @@ def render_snapshot(cap: dict) -> None:
 
 
 def render_scenario_selector() -> str:
+    import subprocess
+    import sys
+    from pathlib import Path
+
     options = ["Base", "Bull", "Bear"]
     statuses = {opt: scen.scenario_status(opt) for opt in options}
     labels = [f"{o}" + (" • TODO" if statuses[o] == "todo" else "") for o in options]
     label_to_opt = dict(zip(labels, options))
-    chosen_label = st.radio(
-        "Scenario",
-        options=labels,
-        horizontal=True,
-        index=0,
-        key="scenario_selector",
-        label_visibility="collapsed",
-    )
+
+    sel_col, btn_col = st.columns([4, 1])
+    with sel_col:
+        chosen_label = st.radio(
+            "Scenario",
+            options=labels,
+            horizontal=True,
+            index=0,
+            key="scenario_selector",
+            label_visibility="collapsed",
+        )
+    with btn_col:
+        if st.button("↻ Refresh", help="Re-runs the model in Excel via COM to capture latest Bull/Bear outputs."):
+            with st.spinner("Flipping scenario switch in Excel..."):
+                script = Path(__file__).parent / "regenerate_scenarios.py"
+                result = subprocess.run(
+                    [sys.executable, str(script)],
+                    capture_output=True, text=True, cwd=str(Path(__file__).parent),
+                )
+            if result.returncode == 0:
+                st.cache_data.clear()
+                st.success("Scenarios refreshed.")
+                st.rerun()
+            else:
+                st.error(f"Refresh failed:\n```\n{result.stderr}\n```")
+
     chosen = label_to_opt[chosen_label]
     if statuses[chosen] == "todo":
-        st.warning(f"**{chosen}** scenario not yet populated — showing Base numbers. "
-                   f"Edit `data/scenarios.json` to seed Bull/Bear forecasts.")
+        st.warning(f"**{chosen}** not populated yet — showing Base. Click ↻ Refresh to capture from model.")
     return chosen
 
 
