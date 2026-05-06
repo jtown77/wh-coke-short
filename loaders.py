@@ -193,6 +193,19 @@ def load_stock_history(period: str = "max") -> dict:
     }
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_intraday(period: str, interval: str) -> dict:
+    """Intraday history for COKE. period e.g. '1d','5d','1mo' • interval e.g. '5m','30m','1h'."""
+    t = yf.Ticker(TICKER)
+    hist = t.history(period=period, interval=interval)
+    if hist.empty:
+        return {"dates": [], "close": []}
+    return {
+        "dates": [d.to_pydatetime() for d in hist.index],
+        "close": [float(c) for c in hist["Close"]],
+    }
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def load_oil_quarterly() -> dict:
     """Quarterly close of WTI futures from yfinance, 2016-present."""

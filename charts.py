@@ -209,6 +209,9 @@ def forecast_cone_chart(
     current_price: float,
     scenarios: list[dict],
     target_date,
+    intraday_1d: dict | None = None,
+    intraday_5d: dict | None = None,
+    intraday_1m: dict | None = None,
 ) -> go.Figure:
     """Two-panel chart: history (left, resizable) + cone (right, fixed). Spot always at the panel boundary."""
     from datetime import datetime, timedelta
@@ -218,7 +221,7 @@ def forecast_cone_chart(
     fig = make_subplots(
         rows=1, cols=2,
         shared_yaxes=True,
-        horizontal_spacing=0.005,
+        horizontal_spacing=0.0,
         column_widths=[0.78, 0.22],
     )
 
@@ -231,14 +234,24 @@ def forecast_cone_chart(
     base = next(s for s in scenarios if s["label"] == "Base")
     bear = next(s for s in scenarios if s["label"] == "Bear")
 
-    # LEFT panel: historical price line
+    # LEFT panel: daily history (visible by default)
     fig.add_trace(go.Scatter(
         x=history_dates, y=history_close, mode="lines",
         name="COKE",
         line=dict(color=WH_NAVY, width=2.2),
         hovertemplate="%{x|%b %d, %Y}<br>$%{y:.2f}<extra></extra>",
-        showlegend=False,
+        showlegend=False, visible=True,
     ), row=1, col=1)
+
+    # LEFT panel: intraday traces (hidden by default; toggled per button)
+    intraday_specs = [intraday_1d or {}, intraday_5d or {}, intraday_1m or {}]
+    for spec in intraday_specs:
+        fig.add_trace(go.Scatter(
+            x=spec.get("dates", []), y=spec.get("close", []), mode="lines",
+            line=dict(color=WH_NAVY, width=2.2),
+            hovertemplate="%{x|%b %d %I:%M %p}<br>$%{y:.2f}<extra></extra>",
+            showlegend=False, visible=False,
+        ), row=1, col=1)
 
     # RIGHT panel: cone fill (single light WH navy envelope)
     fig.add_trace(go.Scatter(
@@ -289,34 +302,54 @@ def forecast_cone_chart(
     def _strip(d):
         return d.replace(tzinfo=None) if hasattr(d, "tzinfo") and d.tzinfo else d
 
-    def _y_range(start_dt):
+    def _yrange_from_data(dates, closes, start_dt):
         s = _strip(start_dt)
         e = _strip(anchor_date)
-        hist_y = [c for d, c in zip(history_dates, history_close)
+        hist_y = [c for d, c in zip(dates, closes)
                   if s <= _strip(d) <= e and c is not None and c > 0]
         cone_lows = [bear["target"], base["target"]]
-        candidates_low = hist_y + cone_lows
-        y_min = max(0.0, min(candidates_low) * 0.92) if candidates_low else 0.0
+        y_min = max(0.0, min(hist_y + cone_lows) * 0.92) if (hist_y or cone_lows) else 0.0
         y_max = (current_price - y_min) / SPOT_FRACTION + y_min
         if hist_y:
             y_max = max(y_max, max(hist_y) * 1.05)
         y_max = max(y_max, bull["target"] * 1.05)
         return [y_min, y_max]
 
-    def _btn_args(start_dt):
-        return [{"xaxis.range": [start_dt.isoformat(), anchor_date.isoformat()],
-                 "yaxis.range": _y_range(start_dt)}]
+    # Trace visibility patterns (9 traces total: daily + 3 intraday + cone fill + 3 lines + spot)
+    DAILY = [True, False, False, False, True, True, True, True, True]
+    INTRA_1D = [False, True, False, False, True, True, True, True, True]
+    INTRA_5D = [False, False, True, False, True, True, True, True, True]
+    INTRA_1M = [False, False, False, True, True, True, True, True, True]
 
-    earliest = history_dates[0] if history_dates else anchor_date
+    def _earliest(dates):
+        return dates[0] if dates else anchor_date
+
+    def _btn(label, visibility, dates, closes, start_dt):
+        return dict(
+            label=label, method="update",
+            args=[
+                {"visible": visibility},
+                {"xaxis.range": [start_dt.isoformat(), anchor_date.isoformat()],
+                 "yaxis.range": _yrange_from_data(dates, closes, start_dt)},
+            ],
+        )
+
+    intra_1d_d = (intraday_1d or {}).get("dates", [])
+    intra_1d_c = (intraday_1d or {}).get("close", [])
+    intra_5d_d = (intraday_5d or {}).get("dates", [])
+    intra_5d_c = (intraday_5d or {}).get("close", [])
+    intra_1m_d = (intraday_1m or {}).get("dates", [])
+    intra_1m_c = (intraday_1m or {}).get("close", [])
+
     range_buttons = [
-        dict(label="1D",  method="relayout", args=_btn_args(anchor_date - timedelta(days=1))),
-        dict(label="5D",  method="relayout", args=_btn_args(anchor_date - timedelta(days=5))),
-        dict(label="1M",  method="relayout", args=_btn_args(anchor_date - timedelta(days=31))),
-        dict(label="6M",  method="relayout", args=_btn_args(anchor_date - timedelta(days=183))),
-        dict(label="YTD", method="relayout", args=_btn_args(datetime(anchor_date.year, 1, 1))),
-        dict(label="1Y",  method="relayout", args=_btn_args(anchor_date - timedelta(days=365))),
-        dict(label="5Y",  method="relayout", args=_btn_args(anchor_date - timedelta(days=365 * 5))),
-        dict(label="MAX", method="relayout", args=_btn_args(earliest)),
+        _btn("1D",  INTRA_1D, intra_1d_d, intra_1d_c, _earliest(intra_1d_d) if intra_1d_d else (anchor_date - timedelta(days=1))),
+        _btn("5D",  INTRA_5D, intra_5d_d, intra_5d_c, _earliest(intra_5d_d) if intra_5d_d else (anchor_date - timedelta(days=5))),
+        _btn("1M",  INTRA_1M, intra_1m_d, intra_1m_c, _earliest(intra_1m_d) if intra_1m_d else (anchor_date - timedelta(days=31))),
+        _btn("6M",  DAILY, history_dates, history_close, anchor_date - timedelta(days=183)),
+        _btn("YTD", DAILY, history_dates, history_close, datetime(anchor_date.year, 1, 1)),
+        _btn("1Y",  DAILY, history_dates, history_close, anchor_date - timedelta(days=365)),
+        _btn("5Y",  DAILY, history_dates, history_close, anchor_date - timedelta(days=365 * 5)),
+        _btn("MAX", DAILY, history_dates, history_close, _earliest(history_dates)),
     ]
 
     fig.update_layout(
@@ -336,11 +369,14 @@ def forecast_cone_chart(
     )
 
     default_start = anchor_date - timedelta(days=365)
-    default_yr = _y_range(default_start)
-    fig.update_yaxes(title="Price ($)", tickprefix="$", range=default_yr, row=1, col=1)
-    fig.update_yaxes(showticklabels=False, range=default_yr, row=1, col=2)
-    fig.update_xaxes(title="", range=[default_start.isoformat(), anchor_date.isoformat()], row=1, col=1)
-    fig.update_xaxes(title="", range=[anchor_date, target_date], showticklabels=False, row=1, col=2)
+    default_yr = _yrange_from_data(history_dates, history_close, default_start)
+    fig.update_yaxes(title="Price ($)", tickprefix="$", range=default_yr, row=1, col=1,
+                     showline=False)
+    fig.update_yaxes(showticklabels=False, showline=False, range=default_yr, row=1, col=2)
+    fig.update_xaxes(title="", range=[default_start.isoformat(), anchor_date.isoformat()],
+                     row=1, col=1, showline=False)
+    fig.update_xaxes(title="", range=[anchor_date, target_date], showticklabels=False,
+                     showline=False, row=1, col=2)
 
     fig = _apply_style(
         fig,

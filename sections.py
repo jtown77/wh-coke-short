@@ -44,11 +44,15 @@ def _render_styled_table(df: pd.DataFrame, first_col_bold: bool = True) -> None:
     st.markdown(sty.hide(axis="index").to_html(), unsafe_allow_html=True)
 
 
-def render_forecast_cone(history: dict, cap: dict, summary: dict) -> None:
+def render_forecast_cone(history: dict, cap: dict, summary: dict,
+                         intra_1d: dict | None = None,
+                         intra_5d: dict | None = None,
+                         intra_1m: dict | None = None) -> None:
     target_date = datetime(2026, 12, 31)
     fig = charts.forecast_cone_chart(
         history["dates"], history["close"], cap["price"],
         summary["return_eps"], target_date,
+        intraday_1d=intra_1d, intraday_5d=intra_5d, intraday_1m=intra_1m,
     )
     st.plotly_chart(fig, use_container_width=True)
 

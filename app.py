@@ -154,6 +154,9 @@ def main() -> None:
     live_price = loaders.load_live_price()
     cap = loaders.derive_cap_table(summary_base["cap_table_static"], live_price)
     history = loaders.load_stock_history(period="max")
+    intra_1d = loaders.load_intraday("1d", "5m")
+    intra_5d = loaders.load_intraday("5d", "30m")
+    intra_1m = loaders.load_intraday("1mo", "1h")
 
     now = datetime.now()
     today = f"{now.strftime('%B')} {now.day}, {now.year}"
@@ -173,7 +176,8 @@ def main() -> None:
     )
     st.markdown("")
 
-    sections.render_forecast_cone(history, cap, summary_base)
+    sections.render_forecast_cone(history, cap, summary_base,
+                                  intra_1d=intra_1d, intra_5d=intra_5d, intra_1m=intra_1m)
     st.markdown("")
 
     # Scenario selector
