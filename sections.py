@@ -271,9 +271,10 @@ def render_thesis() -> None:
         "used on sugary foods and drinks. 7 states have already pushed through these "
         "regulations (IA, IN, NE, UT, WV on Jan 1; ID Feb 15; FL Apr 20) and 6 states "
         "will push these policies through from now until October, 2026 (AR Jul 1, HI "
-        "Aug 1, ND Sep 1, MO/OH/VA Oct 1). 5 of these states are within COKE's "
-        "distribution territory: WV, IN, and FL are already live, and VA and OH go "
-        "effective October 1, 2026."
+        "Aug 1, ND Sep 1, MO/OH/VA Oct 1). 5 of these states sit within COKE's "
+        "distribution territory per the FY 2025 10-K (Carolinas, Mid-Atlantic, "
+        "Mid-South, Mid-West): WV and IN are already live (Jan 1, 2026), AR goes "
+        "effective July 1, and OH and VA go effective October 1, 2026."
     )
 
     st.markdown("**Thesis #2: Costs are squeezed from the war in Iran**")
@@ -492,23 +493,26 @@ def render_snap_brief() -> None:
     st.markdown("")
     st.markdown("##### State Waivers — Effective Dates")
     waivers_df = pd.DataFrame([
-        ("Iowa", "Jan 1, 2026", "Soda + taxable foods", "No (partner system)"),
-        ("Indiana", "Jan 1, 2026", "Soft drinks + candy", "Adjacent"),
+        ("Iowa", "Jan 1, 2026", "Soda + taxable foods", "No"),
+        ("Indiana", "Jan 1, 2026", "Soft drinks + candy", "Yes (Mid-West)"),
         ("Nebraska", "Jan 1, 2026", "Soda + energy drinks", "No"),
         ("Utah", "Jan 1, 2026", "Soft drinks", "No"),
-        ("West Virginia", "Jan 1, 2026", "Soda", "Yes"),
+        ("West Virginia", "Jan 1, 2026", "Soda", "Yes (Mid-Atlantic)"),
         ("Idaho", "Feb 15, 2026", "Soda + candy", "No"),
-        ("Florida", "Apr 20, 2026", "Soda, energy, candy, prepared desserts", "Adjacent"),
-        ("Arkansas", "Jul 1, 2026", "Soda, sugary drinks, candy", "No"),
+        ("Florida", "Apr 20, 2026", "Soda, energy, candy, prepared desserts", "No"),
+        ("Arkansas", "Jul 1, 2026", "Soda, sugary drinks, candy", "Yes (Mid-South)"),
         ("Hawaii", "Aug 1, 2026", "Soft drinks", "No"),
         ("North Dakota", "Sep 1, 2026", "Sweetened bev, energy, candy", "No"),
         ("Missouri", "Oct 1, 2026", "Candy, desserts, sweetened bev", "No"),
-        ("Ohio", "Oct 1, 2026", "Sugar-sweetened bev", "Yes"),
-        ("Virginia", "Oct 1, 2026", "Sweetened bev", "Yes"),
+        ("Ohio", "Oct 1, 2026", "Sugar-sweetened bev", "Yes (Mid-West, Mid-Atlantic)"),
+        ("Virginia", "Oct 1, 2026", "Sweetened bev", "Yes (Carolinas, Mid-Atlantic)"),
     ], columns=["State", "Effective", "Restricted", "COKE Territory"])
     _render_styled_table(waivers_df)
     st.caption(
-        "Source: USDA FNS Food Restriction Waivers; ~22 states approved overall; 10+ implemented as of late April 2026."
+        "Source: USDA FNS Food Restriction Waivers (waivers, dates, restricted categories); "
+        "COKE FY 2025 10-K (territory mapping by region). ~22 states approved overall; "
+        "10+ implemented as of late April 2026. 5 waiver states sit in COKE territory: "
+        "WV and IN live, AR (Jul 1), OH and VA (Oct 1)."
     )
 
     # MANAGEMENT & EXPERT QUOTES
@@ -581,10 +585,10 @@ def render_snap_brief() -> None:
     st.markdown("##### SNAP Thesis Ledger — COKE-Specific")
     ledger_df = pd.DataFrame([
         ("CSD velocity -5.1% 52w (NielsenIQ, Apr 2026)", "KDP: gov shutdown 'natural experiment' showed CSD purchases held when SNAP funding paused"),
-        ("13 states with effective dates; FL, OH, VA add ~Q4 2026", "National brands only 15-20% SNAP-paid (vs 40-45% for value brands)"),
-        ("PEP mgmt explicitly flagged SNAP as 1Q headwind", "KO Q1 26 reported +3% global volume / +10% organic rev — overall not impaired"),
+        ("5 COKE-territory states restricted: WV, IN live; AR Jul 1; OH, VA Oct 1", "National brands only 15-20% SNAP-paid (vs 40-45% for value brands)"),
+        ("PEP mgmt explicitly flagged SNAP as 1Q headwind", "KO Q1 26 reported +3% global volume / +10% organic rev, overall not impaired"),
         ("Grocery SVP: 'could hurt the category... particularly CSDs'", "Only 3.3% of total trips use SNAP nationally"),
-        ("C-store soda/candy ~45% gross margin → channel pain", "Substitution flow into other COKE still beverages possible"),
+        ("C-store soda/candy ~45% gross margin, channel pain", "Substitution flow into other COKE still beverages possible"),
     ], columns=["BEAR points", "BULL / counter-points"])
     _render_styled_table(ledger_df, first_col_bold=False)
 
