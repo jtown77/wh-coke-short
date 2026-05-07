@@ -186,6 +186,26 @@ def load_commodities_daily(years: int = 3) -> dict:
     }
 
 
+def apply_live_price_to_returns(summary: dict, live_price: float) -> dict:
+    """Recompute return_eps / return_ebitda 'ret' off live price.
+
+    The model captures returns against its own price-of-record (D7), which lags
+    intraday moves and goes stale between snapshots. EPS targets and EBITDA-derived
+    price targets are independent of current price, so only the return % needs to
+    be redrawn off the live price.
+    """
+    if not live_price or live_price <= 0:
+        return summary
+    out = dict(summary)
+    for kind in ("return_eps", "return_ebitda"):
+        rows = summary.get(kind, [])
+        out[kind] = [
+            {**r, "ret": (r["target"] / live_price - 1) if r.get("target") is not None else r.get("ret")}
+            for r in rows
+        ]
+    return out
+
+
 def derive_cap_table(static: dict, live_price: float) -> dict:
     market_cap = live_price * static["diluted_shares"]
     net_debt = static["total_debt"] - static["cash"]

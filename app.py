@@ -339,6 +339,7 @@ def main() -> None:
     cogs = loaders.load_cogs_sensitivity()
     commodities = loaders.load_commodities_daily(years=3)
     live_price = loaders.load_live_price()
+    summary_base = loaders.apply_live_price_to_returns(summary_base, live_price)
     cap = loaders.derive_cap_table(summary_base["cap_table_static"], live_price)
     history = loaders.load_stock_history(period="1y")
 
@@ -371,6 +372,7 @@ def main() -> None:
         st.markdown('<div class="eyebrow">Scenario</div>', unsafe_allow_html=True)
         chosen_scenario = sections.render_scenario_selector()
         summary = scen.apply_scenario(summary_base, chosen_scenario)
+        summary = loaders.apply_live_price_to_returns(summary, live_price)
 
         sections.render_summary_block(summary, cap)
         sections.render_refresh_block()
