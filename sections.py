@@ -334,6 +334,17 @@ def render_quarterly_yoy(seg: dict, figure_num: int) -> None:
     )
 
 
+def render_cumulative_pricing(seg: dict, cpi: dict, figure_num: int) -> None:
+    fig = charts.cumulative_pricing_chart(seg, cpi, figure_num)
+    st.plotly_chart(fig, use_container_width=True, config=charts.STATIC_CONFIG)
+    st.caption(
+        "Per-case prices indexed to Q1 2019 = 100. Total is a case-mix-weighted blend of "
+        "sparkling and still. Core CPI (FRED CPILFESL, all items less food and energy, "
+        "quarterly average) is the inflation benchmark. The gap between COKE's pricing and "
+        "Core CPI since 2021 is the magnitude of the affordability problem."
+    )
+
+
 def render_commodity_stack(commodities: dict, figure_num: int) -> None:
     al = commodities["aluminum"]
     wti = commodities["wti"]

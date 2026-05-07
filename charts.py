@@ -165,6 +165,85 @@ def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
     )
 
 
+def cumulative_pricing_chart(seg: dict, cpi: dict, figure_num: int, base_label: str = "Q1 19") -> go.Figure:
+    """Cumulative price index by segment (Sparkling / Still / Total) vs Core CPI.
+
+    Each series rebased to base_label = 100. Total = case-mix-weighted blend of
+    sparkling and still per-case prices.
+    """
+    quarters = seg["quarters"]
+    sp_price = seg["sparkling_price"]
+    sp_vol = seg["sparkling_volume"]
+    st_price = seg["still_price"]
+    st_vol = seg["still_volume"]
+
+    # Truncate at Q1 26 (last reported quarter)
+    end_label = "Q1 26"
+    end_idx = quarters.index(end_label) + 1 if end_label in quarters else len(quarters)
+    base_idx = quarters.index(base_label) if base_label in quarters else 0
+
+    qs = quarters[base_idx:end_idx]
+
+    def _safe(v):
+        return v if v is not None else float("nan")
+
+    sp_p = [_safe(sp_price[i]) for i in range(base_idx, end_idx)]
+    st_p = [_safe(st_price[i]) for i in range(base_idx, end_idx)]
+    sp_v = [_safe(sp_vol[i]) for i in range(base_idx, end_idx)]
+    st_v = [_safe(st_vol[i]) for i in range(base_idx, end_idx)]
+
+    # Mix-weighted total $/case
+    total_p = []
+    for sv, sp, tv, tp in zip(sp_v, sp_p, st_v, st_p):
+        denom = (sv or 0) + (tv or 0)
+        if denom and not (sv != sv or tv != tv or sp != sp or tp != tp):  # NaN guard
+            total_p.append((sv * sp + tv * tp) / denom)
+        else:
+            total_p.append(float("nan"))
+
+    sp_idx = [(p / sp_p[0]) * 100 if sp_p[0] else float("nan") for p in sp_p]
+    st_idx = [(p / st_p[0]) * 100 if st_p[0] else float("nan") for p in st_p]
+    tot_idx = [(p / total_p[0]) * 100 if total_p[0] and total_p[0] == total_p[0] else float("nan") for p in total_p]
+
+    # Align Core CPI to same quarter range
+    cpi_q = cpi.get("quarters", [])
+    cpi_v = cpi.get("core_cpi", [])
+    cpi_map = dict(zip(cpi_q, cpi_v))
+    cpi_base = cpi_map.get(base_label)
+    cpi_idx = [(cpi_map[q] / cpi_base) * 100 if (cpi_base and q in cpi_map) else float("nan") for q in qs]
+
+    fig = go.Figure()
+    series = [
+        ("Sparkling", sp_idx, WH_NAVY, "solid"),
+        ("Still", st_idx, WH_ACCENT, "solid"),
+        ("Total (mix-weighted)", tot_idx, WH_INK, "solid"),
+        ("Core CPI", cpi_idx, WH_GRAY, "dash"),
+    ]
+    for name, vals, color, dash in series:
+        fig.add_trace(go.Scatter(
+            x=qs, y=vals, mode="lines", name=name,
+            line=dict(color=color, width=2.4, dash=dash),
+            connectgaps=False,
+            hovertemplate=f"<b>{name}</b><br>%{{x}}: %{{y:.1f}}<extra></extra>",
+        ))
+
+    last = {name: vals[-1] for name, vals, _, _ in series if vals and vals[-1] == vals[-1]}
+    sub = (
+        f"Index: {base_label} = 100 • through {qs[-1]} • "
+        f"Sparkling {last.get('Sparkling', 0):.0f} • Still {last.get('Still', 0):.0f} • "
+        f"Total {last.get('Total (mix-weighted)', 0):.0f} • Core CPI {last.get('Core CPI', 0):.0f}"
+    )
+
+    fig.update_xaxes(title="", tickangle=-45, nticks=14)
+    fig.update_yaxes(title=f"Index ({base_label} = 100)")
+    return _apply_style(
+        fig,
+        f"Figure {figure_num}. Cumulative Price Index — COKE Pricing vs. Core CPI",
+        sub,
+        height=520,
+    )
+
+
 def commodity_stack_chart(al_dates: list, al_close_mt: list, wti_dates: list, wti_close: list, figure_num: int) -> go.Figure:
     """Daily aluminum (left axis, $/MT) and WTI Oil (right axis, $/bbl) — last 3 years."""
     fig = go.Figure()

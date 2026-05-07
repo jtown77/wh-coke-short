@@ -9,8 +9,11 @@ Run from Site/ on the owner's machine (where yfinance works):
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import sys
+import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -59,6 +62,42 @@ def fetch_commodities_daily(years: int = 3) -> dict:
     }
 
 
+def fetch_core_cpi_quarterly(start_year: int = 2018) -> dict:
+    """Core CPI (CPILFESL) from FRED, monthly SA, averaged to quarterly.
+
+    Anchored at start_year so we have a Q1 baseline before Q1 2019.
+    """
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPILFESL"
+    with urllib.request.urlopen(url, timeout=30) as resp:
+        text = resp.read().decode("utf-8")
+
+    monthly = {}  # YYYY-MM -> value
+    reader = csv.DictReader(io.StringIO(text))
+    for r in reader:
+        d = r.get("observation_date") or r.get("DATE")
+        v = r.get("CPILFESL")
+        if not d or not v or v == ".":
+            continue
+        try:
+            dt = datetime.strptime(d, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if dt.year < start_year:
+            continue
+        monthly[(dt.year, dt.month)] = float(v)
+
+    quarters = []
+    values = []
+    for year in range(start_year, datetime.utcnow().year + 1):
+        for q in range(1, 5):
+            months = [(year, m) for m in (q * 3 - 2, q * 3 - 1, q * 3)]
+            vals = [monthly[m] for m in months if m in monthly]
+            if len(vals) == 3:
+                quarters.append(f"Q{q} {str(year)[-2:]}")
+                values.append(sum(vals) / 3)
+    return {"quarters": quarters, "core_cpi": values}
+
+
 def main() -> int:
     print(f"Fetching {TICKER} live price...")
     live_price = fetch_live_price()
@@ -73,12 +112,17 @@ def main() -> int:
     print(f"  ALI=F: {len(commodities['aluminum']['dates'])} bars, "
           f"CL=F: {len(commodities['wti']['dates'])} bars")
 
+    print("Fetching Core CPI (CPILFESL) from FRED...")
+    cpi = fetch_core_cpi_quarterly(start_year=2018)
+    print(f"  {len(cpi['quarters'])} quarters: {cpi['quarters'][0]} – {cpi['quarters'][-1]}")
+
     payload = {
         "_note": "Market data snapshot. Regenerate with regenerate_market_data.py.",
         "_captured_at": datetime.now().isoformat(timespec="seconds"),
         "live_price": live_price,
         "stock_history_1y": history,
         "commodities_daily_3y": commodities,
+        "core_cpi_quarterly": cpi,
     }
 
     tmp = MARKET_DATA_FILE.with_suffix(".json.tmp")

@@ -186,6 +186,14 @@ def load_commodities_daily(years: int = 3) -> dict:
     }
 
 
+def load_core_cpi_quarterly() -> dict:
+    """Quarterly Core CPI (CPILFESL, FRED) from market_data.json. Empty dict on miss."""
+    md = _load_market_data()
+    if md is None or not md.get("core_cpi_quarterly"):
+        return {"quarters": [], "core_cpi": []}
+    return md["core_cpi_quarterly"]
+
+
 def apply_live_price_to_returns(summary: dict, live_price: float) -> dict:
     """Recompute return_eps / return_ebitda 'ret' off live price.
 

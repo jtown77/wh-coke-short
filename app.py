@@ -338,6 +338,7 @@ def main() -> None:
     seg = loaders.load_segment_build()
     cogs = loaders.load_cogs_sensitivity()
     commodities = loaders.load_commodities_daily(years=3)
+    core_cpi = loaders.load_core_cpi_quarterly()
     live_price = loaders.load_live_price()
     summary_base = loaders.apply_live_price_to_returns(summary_base, live_price)
     cap = loaders.derive_cap_table(summary_base["cap_table_static"], live_price)
@@ -389,13 +390,15 @@ def main() -> None:
         sections.render_elasticity(seg, "Still", figure_num=2)
         st.markdown("")
         sections.render_quarterly_yoy(seg, figure_num=3)
+        st.markdown("")
+        sections.render_cumulative_pricing(seg, core_cpi, figure_num=4)
 
         st.markdown("---")
         st.markdown('<div class="eyebrow">Cost Stack</div>', unsafe_allow_html=True)
         st.markdown("## Commodity Exposure — Aluminum and Oil")
-        sections.render_commodity_stack(commodities, figure_num=4)
+        sections.render_commodity_stack(commodities, figure_num=5)
         st.markdown("")
-        sections.render_aluminum_sensitivity(cogs, summary, cap, figure_num=5)
+        sections.render_aluminum_sensitivity(cogs, summary, cap, figure_num=6)
 
     with tab_qual:
         sections.render_snap_brief()
