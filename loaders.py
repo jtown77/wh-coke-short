@@ -17,7 +17,26 @@ LIVE_MODEL = Path(
     r"C:\Users\JoshuaLehrman\Wolf Hill Capital Management LLC\Shared - Documents\Josh\COKE\Models\WH COKE Model v04.29.2026.xlsx"
 )
 SNAPSHOT_FILE = Path(__file__).parent / "data" / "snapshot.json"
+MARKET_DATA_FILE = Path(__file__).parent / "data" / "market_data.json"
 TICKER = "COKE"
+
+
+def _market_data_mtime() -> float:
+    try:
+        return MARKET_DATA_FILE.stat().st_mtime
+    except FileNotFoundError:
+        return 0.0
+
+
+@st.cache_data(show_spinner=False)
+def _load_market_data_cached(mtime: float) -> dict | None:
+    if not MARKET_DATA_FILE.exists():
+        return None
+    return json.loads(MARKET_DATA_FILE.read_text())
+
+
+def _load_market_data() -> dict | None:
+    return _load_market_data_cached(_market_data_mtime())
 
 
 def _snapshot_mtime() -> float:
@@ -84,6 +103,9 @@ def load_cogs_sensitivity() -> dict:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_live_price() -> float:
+    md = _load_market_data()
+    if md is not None and md.get("live_price") is not None:
+        return float(md["live_price"])
     t = yf.Ticker(TICKER)
     info = t.info
     p = info.get("regularMarketPrice") or info.get("currentPrice")
@@ -95,6 +117,13 @@ def load_live_price() -> float:
 
 @st.cache_data(ttl=900, show_spinner=False)
 def load_stock_history(period: str = "max") -> dict:
+    md = _load_market_data()
+    if md is not None and period == "1y" and md.get("stock_history_1y"):
+        h = md["stock_history_1y"]
+        return {
+            "dates": [datetime.fromisoformat(d) for d in h["dates"]],
+            "close": [float(c) for c in h["close"]],
+        }
     t = yf.Ticker(TICKER)
     hist = t.history(period=period, interval="1d")
     if hist.empty:
@@ -135,6 +164,10 @@ def load_commodities_daily(years: int = 3) -> dict:
     """Daily close for CME Midwest US Aluminum (ALI=F, $/MT) + WTI (CL=F, $/bbl)
     over the trailing N years. Aluminum is quoted directly in USD/metric ton on CME.
     """
+    md = _load_market_data()
+    if md is not None and years == 3 and md.get("commodities_daily_3y"):
+        return md["commodities_daily_3y"]
+
     from datetime import datetime, timedelta
     start = (datetime.utcnow() - timedelta(days=int(years * 365.25) + 30)).strftime("%Y-%m-%d")
 
