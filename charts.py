@@ -60,7 +60,7 @@ def _filter_history(values: list, quarters: list, end_label: str = "Q4 25") -> t
     return values[:idx], quarters[:idx]
 
 
-def _filter_pairs(x: list, y: list, labels: list, start_label: str = "Q1 18", end_label: str = "Q4 25"):
+def _filter_pairs(x: list, y: list, labels: list, start_label: str = "Q1 18", end_label: str = "Q1 26"):
     out_x, out_y, out_l = [], [], []
     started = False
     for xi, yi, li in zip(x, y, labels):
@@ -128,10 +128,10 @@ def elasticity_scatter(price_yoy: list, volume_yoy: list, quarter_labels: list, 
 
 
 def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
-    """Six-line chart, history only (truncated at Q4 25). Volume = solid, Price = dashed."""
+    """Six-line chart, history only (truncated at Q1 26). Volume = solid, Price = dashed."""
     quarters_full = seg["quarters"]
     quarters = []
-    end = "Q4 25"
+    end = "Q1 26"
     for q in quarters_full:
         quarters.append(q)
         if q == end:
@@ -160,7 +160,7 @@ def quarterly_yoy_chart(seg: dict, figure_num: int) -> go.Figure:
     return _apply_style(
         fig,
         f"Figure {figure_num}. Quarterly Price & Volume YoY Growth",
-        "Sparkling and Still • Volume (solid) vs Price (dashed) • historicals through Q4 2025",
+        "Sparkling and Still • Volume (solid) vs Price (dashed) • historicals through Q1 2026",
         height=520,
     )
 
