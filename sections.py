@@ -527,21 +527,21 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
     c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
         _card(
-            assets_dir / "trucks.png",
+            assets_dir / "gary_driving.png",
             f"{annual_miles_m:,.0f}M",
             "Miles / year",
             "4,600 vehicles across 60 distribution centers and 14 states (FY25 10-K)",
         )
     with c2:
         _card(
-            assets_dir / "fuel_gauge.png",
+            assets_dir / "coke_fleet.png",
             f"{mpg_blended:.1f}",
             "MPG (blended)",
             "Mix of Class 8 line-haul tractors and DSD box trucks; per former CFO",
         )
     with c3:
         _card(
-            assets_dir / "diesel_pump.png",
+            assets_dir / "gary_fueling.png",
             f"{annual_gallons_m:,.0f}M",
             "Gallons / year",
             f"~${annual_spend_mm:,.0f}M annual diesel spend @ ${spot_price:.2f}/gal "
@@ -553,43 +553,31 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
         f"##### Each \\$0.10/gal move in diesel ≈ \\${eps_per_dime:.2f} EPS impact"
     )
 
-    levels = [-0.50, -0.40, -0.30, -0.20, -0.10, 0.00, 0.10, 0.20, 0.30, 0.40, 0.50]
-    rows = []
-    for delta in levels:
-        gal_price = spot_price + delta
-        incr_spend_mm = annual_gallons_m * delta  # in $M (gallons in M × $ per gal)
-        eps_impact = -incr_spend_mm * (1 - tax_rate) / diluted_shares
+    sh_fy25_mm = 842  # FY2025 SD&A "shipping and handling" line, $M
+    diesel_pct_of_sh = annual_spend_mm / sh_fy25_mm * 100
 
-        if abs(delta) < 1e-6:
-            rows.append([
-                f"${gal_price:.2f} (current)",
-                "baseline",
-                "—",
-                "—",
-            ])
-        else:
-            sign = "+" if delta > 0 else "−"
-            rows.append([
-                f"${gal_price:.2f}",
-                f"{sign}${abs(delta):.2f}",
-                f"{sign}${abs(incr_spend_mm):.0f}M",
-                f"{sign}${abs(eps_impact):.2f}" if delta < 0 else f"−${abs(eps_impact):.2f}",
-            ])
-
-    sens_df = pd.DataFrame(rows, columns=[
-        "Diesel ($/gal)", "vs Current", "Incremental Spend", "2026 EPS Impact",
-    ])
-    _render_styled_table(sens_df, first_col_bold=True)
+    share_df = pd.DataFrame(
+        [[
+            f"${annual_spend_mm:,.0f}M",
+            f"${sh_fy25_mm:,}M",
+            f"{diesel_pct_of_sh:.0f}%",
+        ]],
+        columns=[
+            f"Annual diesel spend (~{annual_gallons_m:.0f}M gal × ${spot_price:.2f})",
+            "FY25 'shipping & handling' (10-K)",
+            "Diesel as % of S&H",
+        ],
+    )
+    _render_styled_table(share_df, first_col_bold=False)
 
     st.caption(
         f"Anchored to US weekly retail #2 diesel (FRED GASDESW, week of {spot_date_str}, "
         f"\\${spot_price:.2f}/gal). Math: ΔEPS = (ΔPrice × 100M gal × (1 − 25% tax)) ÷ "
-        f"{diluted_shares:.1f}M diluted shares. Negative EPS impact = drag (i.e. price up, EPS down). "
-        "**S&H reconciliation:** FY2025 SD&A 'shipping and handling' line was \\$842M (Q1 26: \\$216M, +11% YoY); "
-        "additional S&H sits in COGS for plant→DC movement (not separately disclosed). The fleet-cost line "
-        "in the 10-K Properties section (\\$130M FY25) covers only direct-fleet repairs/fuel/oil and "
-        "understates total system diesel exposure. ~40% of 2026 hedged near-term (sell-side); structural "
-        "exposure is unhedged beyond ~6 months."
+        f"{diluted_shares:.1f}M diluted shares. Reported FY25 SD&A 'shipping & handling' "
+        f"was \\${sh_fy25_mm}M (Q1 26: \\$216M, +11% YoY); additional S&H sits in COGS "
+        "for plant→DC movement (not separately disclosed), so true diesel exposure runs "
+        "above the \\$842M line. ~40% of 2026 hedged near-term per sell-side; structural "
+        "exposure unhedged beyond ~6 months."
     )
 
 

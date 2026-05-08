@@ -9,3 +9,7 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Local image-generation workspace (Gary photos, gen scripts with API keys, intermediates).
+# Do not commit — contains private reference photos and the Gemini API key.
+character_refs/
