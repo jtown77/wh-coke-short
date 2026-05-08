@@ -299,6 +299,16 @@ def render_thesis() -> None:
         "high teens multiple"
     )
 
+    st.markdown("**Thesis #5: GLP-1 adoption is a structural drag on sugary-soft-drink volumes**")
+    st.markdown(
+        "- Numerator household panel: GLP-1 households cut CSD purchases ~12-15% "
+        "post-Rx vs matched controls\n"
+        "- ~15M Americans now on GLP-1s, up from <2M in 2022; Trilliant Health "
+        "projects 25-35M by 2030\n"
+        "- Sparkling is ~75% of COKE's case volume — directly exposed to where the "
+        "GLP-1 drag is showing up first"
+    )
+
 
 def render_elasticity(seg: dict, segment: str, figure_num: int) -> None:
     if segment == "Sparkling":
@@ -498,9 +508,6 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
 
     st.markdown('<div class="eyebrow">Distribution Cost — Diesel</div>', unsafe_allow_html=True)
     st.markdown(f"## Figure {figure_num}. Diesel Cost Cascade — From Miles to EPS")
-    st.markdown(
-        "Mostly unhedged structurally; ~40% of 2026 hedged near-term per sell-side."
-    )
     st.markdown("")
     st.markdown("##### The Build — Miles, MPG, Gallons")
 
@@ -575,8 +582,7 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
         f"(ΔPrice × 100M gal × (1 − 25% tax)) ÷ {diluted_shares:.1f}M diluted shares. "
         f"Reported FY25 SD&A 'shipping & handling' was \\${sh_fy25_mm}M (Q1 26: \\$216M, "
         "+11% YoY); additional S&H sits in COGS for plant→DC movement (not separately "
-        "disclosed), so true diesel exposure runs above the \\$842M line. ~40% of 2026 "
-        "hedged near-term per sell-side; structural exposure unhedged beyond ~6 months."
+        "disclosed), so true diesel exposure runs above the \\$842M line."
     )
 
 
