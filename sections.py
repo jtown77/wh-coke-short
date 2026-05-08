@@ -479,17 +479,19 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
     tax_rate = 0.25
     diluted_shares = cap["diluted_shares"]
 
-    spot_price = diesel.get("latest") if diesel.get("latest") else 5.64
-    spot_date_iso = diesel["dates"][-1] if diesel.get("dates") else None
-    if spot_date_iso:
-        try:
-            spot_date_str = datetime.strptime(spot_date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
-        except Exception:
-            spot_date_str = spot_date_iso
+    # Anchor to FY2025 actual full-year average (parity with the aluminum cascade,
+    # so the diesel-as-%-of-S&H ratio is apples-to-apples FY25 vs FY25).
+    pairs_2025 = [
+        (d, p) for d, p in zip(diesel.get("dates", []), diesel.get("price_per_gal", []))
+        if d.startswith("2025")
+    ]
+    if pairs_2025:
+        diesel_baseline = sum(p for _, p in pairs_2025) / len(pairs_2025)
     else:
-        spot_date_str = "latest"
+        diesel_baseline = diesel.get("latest") or 3.66
+    baseline_label = "2025 avg"
 
-    annual_spend_mm = annual_gallons_m * spot_price
+    annual_spend_mm = annual_gallons_m * diesel_baseline
     eps_per_dime = (annual_gallons_m * 0.10 * (1 - tax_rate)) / diluted_shares  # $/share per +$0.10/gal
 
     assets_dir = Path(__file__).parent / "assets" / "diesel"
@@ -544,8 +546,8 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
             assets_dir / "gary_fueling.png",
             f"{annual_gallons_m:,.0f}M",
             "Gallons / year",
-            f"~${annual_spend_mm:,.0f}M annual diesel spend @ ${spot_price:.2f}/gal "
-            f"(US retail #2 diesel, week of {spot_date_str})",
+            f"~${annual_spend_mm:,.0f}M annual diesel spend @ ${diesel_baseline:.2f}/gal "
+            f"(US retail #2 diesel, {baseline_label})",
         )
 
     st.markdown("")
@@ -563,7 +565,7 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
             f"{diesel_pct_of_sh:.0f}%",
         ]],
         columns=[
-            f"Annual diesel spend (~{annual_gallons_m:.0f}M gal × ${spot_price:.2f})",
+            f"FY25 diesel spend (~{annual_gallons_m:.0f}M gal × ${diesel_baseline:.2f})",
             "FY25 'shipping & handling' (10-K)",
             "Diesel as % of S&H",
         ],
@@ -571,13 +573,13 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
     _render_styled_table(share_df, first_col_bold=False)
 
     st.caption(
-        f"Anchored to US weekly retail #2 diesel (FRED GASDESW, week of {spot_date_str}, "
-        f"\\${spot_price:.2f}/gal). Math: ΔEPS = (ΔPrice × 100M gal × (1 − 25% tax)) ÷ "
-        f"{diluted_shares:.1f}M diluted shares. Reported FY25 SD&A 'shipping & handling' "
-        f"was \\${sh_fy25_mm}M (Q1 26: \\$216M, +11% YoY); additional S&H sits in COGS "
-        "for plant→DC movement (not separately disclosed), so true diesel exposure runs "
-        "above the \\$842M line. ~40% of 2026 hedged near-term per sell-side; structural "
-        "exposure unhedged beyond ~6 months."
+        f"Anchored to FY2025 actual full-year average US retail #2 diesel "
+        f"(FRED GASDESW, \\${diesel_baseline:.2f}/gal). Math: ΔEPS = "
+        f"(ΔPrice × 100M gal × (1 − 25% tax)) ÷ {diluted_shares:.1f}M diluted shares. "
+        f"Reported FY25 SD&A 'shipping & handling' was \\${sh_fy25_mm}M (Q1 26: \\$216M, "
+        "+11% YoY); additional S&H sits in COGS for plant→DC movement (not separately "
+        "disclosed), so true diesel exposure runs above the \\$842M line. ~40% of 2026 "
+        "hedged near-term per sell-side; structural exposure unhedged beyond ~6 months."
     )
 
 
