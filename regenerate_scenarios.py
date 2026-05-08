@@ -117,7 +117,12 @@ def capture_segment_build(ws) -> dict:
     def row(r: int) -> list:
         return [_num(ws.Range(f"{_col(c)}{r}").Value) for c in range(5, 61)]
 
-    return {
+    # Still-segment row mapping audited 2026-05-08 against the Segment Build tab:
+    # R12/R13 sparkling volume + YoY, R18/R19 sparkling price + YoY,
+    # R30/R31 still volume + YoY, R36/R37 still price + YoY.
+    # (Old script used R25/R26/R31/R32 for still — those are sparkling Adj rows
+    # which are mostly empty, so still_* was returning None across the board.)
+    out = {
         "quarters": quarters,
         "total_revenue": row(8),
         "total_cases": row(9),
@@ -126,11 +131,47 @@ def capture_segment_build(ws) -> dict:
         "sparkling_volume_yoy": row(13),
         "sparkling_price": row(18),
         "sparkling_price_yoy": row(19),
-        "still_volume": row(25),
-        "still_volume_yoy": row(26),
-        "still_price": row(31),
-        "still_price_yoy": row(32),
+        "still_volume": row(30),
+        "still_volume_yoy": row(31),
+        "still_price": row(36),
+        "still_price_yoy": row(37),
     }
+
+    # Q1 26 calendar adjustment — model has one fewer selling day vs Q1 25, so
+    # the raw sparkling/still rows overstate Q1 26. The Adj rows in the model
+    # (R25 sparkling vol, R26 sparkling pricing yoy, R27 sparkling vol yoy;
+    # R43 still vol, R44 still pricing yoy, R45 still vol yoy) carry the
+    # calendar-adjusted values. Overlay them onto the raw fields when present.
+    try:
+        i = quarters.index("Q1 26")
+    except ValueError:
+        i = None
+    if i is not None:
+        adj_sp_rev = row(24)[i]
+        adj_sp_vol = row(25)[i]
+        adj_sp_pyoy = row(26)[i]
+        adj_sp_vyoy = row(27)[i]
+        adj_st_rev = row(42)[i]
+        adj_st_vol = row(43)[i]
+        adj_st_pyoy = row(44)[i]
+        adj_st_vyoy = row(45)[i]
+        if adj_sp_vol is not None:
+            out["sparkling_volume"][i] = adj_sp_vol
+        if adj_sp_rev is not None and adj_sp_vol:
+            out["sparkling_price"][i] = adj_sp_rev / adj_sp_vol
+        if adj_sp_pyoy is not None:
+            out["sparkling_price_yoy"][i] = adj_sp_pyoy
+        if adj_sp_vyoy is not None:
+            out["sparkling_volume_yoy"][i] = adj_sp_vyoy
+        if adj_st_vol is not None:
+            out["still_volume"][i] = adj_st_vol
+        if adj_st_rev is not None and adj_st_vol:
+            out["still_price"][i] = adj_st_rev / adj_st_vol
+        if adj_st_pyoy is not None:
+            out["still_price_yoy"][i] = adj_st_pyoy
+        if adj_st_vyoy is not None:
+            out["still_volume_yoy"][i] = adj_st_vyoy
+    return out
 
 
 def capture_cogs_sensitivity(ws) -> dict:
