@@ -59,11 +59,14 @@ def _render_styled_table(df: pd.DataFrame, first_col_bold: bool = True,
     sty = _style_table(df, first_col_bold)
     if highlight_rows:
         # Soft peach for COKE-territory rows (matches the source slide).
+        # `!important` because `_style_table` already sets a `tbody td { background: ... }`
+        # rule whose `tbody td` selector (specificity 101) outranks the per-cell ID
+        # rule (100) that Styler emits for `apply` overrides.
         peach = "#F5DDD5"
         def _row_bg(row):
             i = df.index.get_loc(row.name)
             if i < len(highlight_rows) and highlight_rows[i]:
-                return [f"background: {peach}"] * len(row)
+                return [f"background: {peach} !important"] * len(row)
             return [""] * len(row)
         sty = sty.apply(_row_bg, axis=1)
     st.markdown(sty.hide(axis="index").to_html(), unsafe_allow_html=True)
