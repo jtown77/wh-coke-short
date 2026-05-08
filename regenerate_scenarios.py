@@ -149,11 +149,20 @@ def capture_cogs_sensitivity(ws) -> dict:
         "aluminum_volume_kg_mm": row(40),
         "aluminum_spend_mm": row(42),
         "cases_in_cans_mm": row(27),
+        "cases_in_bottles_mm": row(28),
+        "pct_volume_cans": row(25),
+        "pct_volume_bottles": row(26),
         "kg_per_total_case": row(37),
+        "pet_cost_per_mt_raw": row(45),       # Bloomberg PUSAPEBG Index, quarterly avg
+        "pet_markup_per_mt": row(46),         # raw * 1.5 (bottler markup)
+        "pet_volume_mm_kg": row(54),
+        "pet_spend_mm": row(55),
         "content": {
             "cans_per_case": _num(ws.Range("E33").Value),
             "grams_per_can": _num(ws.Range("E34").Value),
             "kg_per_can_case": _num(ws.Range("E35").Value),
+            "pet_g_per_oz": _num(ws.Range("E50").Value),
+            "pet_kg_per_bottle_case": _num(ws.Range("E51").Value),
         },
     }
 
@@ -223,15 +232,28 @@ def main() -> int:
         original_d4 = ws_summary.Range("D4").Value
         print(f"  D4 was: {original_d4!r}")
 
-        # Initial settle — let Bloomberg fetch data after open
-        excel.CalculateFullRebuild()
+        # Initial settle — let Bloomberg fetch data after open. Tolerate Bloomberg
+        # being offline: the BDP cells will hold #N/A, but every other static
+        # range (volumes, percentages, content cells) still reads correctly.
+        try:
+            excel.CalculateFullRebuild()
+        except Exception as e:
+            print(f"  CalculateFullRebuild failed (likely Bloomberg offline): {e}")
         time.sleep(3)
 
         def _set_d4_and_recalc(value: str, sleep_after: float = 2.0) -> None:
             for attempt in range(3):
                 try:
                     ws_summary.Range("D4").Value = value
-                    excel.CalculateFullRebuild()
+                    try:
+                        excel.CalculateFullRebuild()
+                    except Exception as rebuild_err:
+                        print(f"    CalculateFullRebuild failed on D4={value!r}: {rebuild_err}")
+                        # Fall back to a lighter recalc that won't choke on BBG #N/A.
+                        try:
+                            excel.Calculate()
+                        except Exception:
+                            pass
                     try:
                         excel.CalculateUntilAsyncQueriesDone()
                     except Exception:

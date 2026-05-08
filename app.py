@@ -401,7 +401,9 @@ def main() -> None:
         st.markdown("")
         sections.render_aluminum_sensitivity(cogs, summary, cap, figure_num=6)
         st.markdown("")
-        sections.render_diesel_sensitivity(diesel, cap, figure_num=7)
+        sections.render_pet_resin_sensitivity(cogs, seg, cap, figure_num=7)
+        st.markdown("")
+        sections.render_diesel_sensitivity(diesel, cap, figure_num=8)
 
     with tab_qual:
         sections.render_snap_brief()

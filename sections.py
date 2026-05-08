@@ -304,9 +304,7 @@ def render_thesis() -> None:
         "- Numerator household panel: GLP-1 households cut CSD purchases ~12-15% "
         "post-Rx vs matched controls\n"
         "- ~15M Americans now on GLP-1s, up from <2M in 2022; Trilliant Health "
-        "projects 25-35M by 2030\n"
-        "- Sparkling is ~75% of COKE's case volume — directly exposed to where the "
-        "GLP-1 drag is showing up first"
+        "projects 25-35M by 2030"
     )
 
 
@@ -480,7 +478,121 @@ def render_aluminum_sensitivity(cogs: dict, summary: dict, cap: dict, figure_num
     )
 
 
-def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> None:
+def render_pet_resin_sensitivity(cogs: dict, seg: dict, cap: dict, figure_num: int = 7) -> None:
+    from pathlib import Path
+
+    diluted_shares = cap["diluted_shares"]
+    tax_rate = 0.25
+
+    quarters = cogs["quarters"]
+    y25_idx = [i for i, q in enumerate(quarters) if q.endswith(" 25")]
+
+    fy25_total_cases = sum(seg["total_cases"][i] for i in y25_idx if seg["total_cases"][i] is not None)
+    fy25_bottle_cases = sum(cogs["cases_in_bottles_mm"][i] for i in y25_idx if cogs["cases_in_bottles_mm"][i] is not None)
+    fy25_pet_mm_kg = sum(cogs["pet_volume_mm_kg"][i] for i in y25_idx if cogs["pet_volume_mm_kg"][i] is not None)
+    fy25_pet_mt = fy25_pet_mm_kg * 1000.0
+
+    pct_bottles = (fy25_bottle_cases / fy25_total_cases) if fy25_total_cases else 0.46
+    kg_per_bottle_case = cogs["content"].get("pet_kg_per_bottle_case") or 0.2016
+
+    # All-in landed PET cost ($/MT) — COKE-paid (raw resin × 1.5 bottler markup).
+    # Baseline anchored to FY25 average; 2026 spike per Josh's read off the model.
+    base_pet_2025 = 2400.0
+    base_pet_2026 = 3600.0
+
+    base_spend_2025 = fy25_pet_mt * base_pet_2025 / 1_000_000
+    base_spend_2026 = fy25_pet_mt * base_pet_2026 / 1_000_000
+
+    assets_dir = Path(__file__).parent / "assets" / "pet"
+
+    st.markdown('<div class="eyebrow">Cost Stack</div>', unsafe_allow_html=True)
+    st.markdown(f"## Figure {figure_num}. PET Resin Cost Cascade — From Cases to EPS")
+    st.markdown("##### The Build — How Much PET Resin COKE Buys Each Year")
+
+    def _card(img_path, headline, label, sub):
+        if img_path.exists():
+            st.image(str(img_path), use_container_width=True)
+        st.markdown(
+            f"<div style='text-align:center;font-family:\"Source Serif 4\",Georgia,serif;"
+            f"font-size:2.2rem;font-weight:600;color:{WH_INK};line-height:1.05;margin-top:0.6rem'>{headline}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div style='text-align:center;font-family:Inter,sans-serif;font-size:0.72rem;"
+            f"letter-spacing:0.14em;color:{WH_MUTED};text-transform:uppercase;margin-top:0.25rem'>{label}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div style='text-align:center;font-family:Inter,sans-serif;font-size:0.88rem;"
+            f"color:#4A4A4A;margin-top:0.5rem;line-height:1.4'>{sub}</div>",
+            unsafe_allow_html=True,
+        )
+
+    c1, c2, c3 = st.columns(3, gap="medium")
+    with c1:
+        _card(
+            assets_dir / "total_cases.png",
+            f"{fy25_total_cases:,.0f}M",
+            "Total cases / year",
+            "FY25 total physical case volume per the model",
+        )
+    with c2:
+        _card(
+            assets_dir / "bottle_cases.png",
+            f"{fy25_bottle_cases:,.0f}M",
+            "Bottle cases / year",
+            f"{pct_bottles*100:.0f}% of FY25 cases packaged in PET bottles",
+        )
+    with c3:
+        _card(
+            assets_dir / "pet_pellets.png",
+            f"{fy25_pet_mt/1000:,.0f}k MT",
+            "PET resin / year",
+            f"~${base_spend_2025:,.0f}M spend @ ${base_pet_2025:,.0f}/MT (all-in, 2025 avg)",
+        )
+
+    st.markdown("")
+    st.markdown("##### What the PET Resin Spike Costs — 2026 EPS Drag vs. 2025 Average")
+
+    levels = [base_pet_2025, 2800, 3200, base_pet_2026, 4000, 4500, 5000]
+    levels = sorted(set(round(x) for x in levels))
+
+    rows = []
+    for price in levels:
+        spend = fy25_pet_mt * price / 1_000_000
+        incremental_spend = spend - base_spend_2025
+        eps_drag = -incremental_spend * (1 - tax_rate) / diluted_shares
+        delta_price = price - base_pet_2025
+
+        is_2025 = round(price) == round(base_pet_2025)
+        is_model = round(price) == round(base_pet_2026)
+
+        if is_2025:
+            label = f"${price:,.0f} (2025 actual avg)"
+            rows.append([label, "baseline", "—", "—"])
+        else:
+            suffix = " (2026 spike)" if is_model else ""
+            rows.append([
+                f"${price:,.0f}{suffix}",
+                f"+${delta_price:,.0f}",
+                f"+${incremental_spend:,.0f}M",
+                f"-${abs(eps_drag):.2f}",
+            ])
+
+    sens_df = pd.DataFrame(rows, columns=[
+        "2026 Avg Landed Cost", "vs 2025 ($/MT)", "Incremental Spend", "2026 EPS Drag",
+    ])
+    _render_styled_table(sens_df, first_col_bold=True)
+    st.caption(
+        f"Anchored to 2025 actual full-year average (\\${base_pet_2025:,.0f}/MT, all-in). "
+        "Drag = (incremental spend × (1 − 25% tax)) ÷ 57.0M diluted shares. "
+        f"All-in landed cost = raw PET resin (Bloomberg PUSAPEBG Index) × 1.5 bottler markup. "
+        f"Volume base = {fy25_pet_mt:,.0f} MT/yr ({fy25_bottle_cases:.0f}M bottle cases × "
+        f"{kg_per_bottle_case:.4f} kg/case), captured live from the model's COGS Sensitivity tab."
+    )
+
+
+def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 8) -> None:
     from pathlib import Path
 
     annual_gallons_m = 100.0   # Clifford (former CFO): COKE burns ~100M gallons of diesel annually
