@@ -54,8 +54,18 @@ def _style_table(df: pd.DataFrame, first_col_bold: bool = True):
     return sty
 
 
-def _render_styled_table(df: pd.DataFrame, first_col_bold: bool = True) -> None:
+def _render_styled_table(df: pd.DataFrame, first_col_bold: bool = True,
+                         highlight_rows: list[bool] | None = None) -> None:
     sty = _style_table(df, first_col_bold)
+    if highlight_rows:
+        # Soft peach for COKE-territory rows (matches the source slide).
+        peach = "#F5DDD5"
+        def _row_bg(row):
+            i = df.index.get_loc(row.name)
+            if i < len(highlight_rows) and highlight_rows[i]:
+                return [f"background: {peach}"] * len(row)
+            return [""] * len(row)
+        sty = sty.apply(_row_bg, axis=1)
     st.markdown(sty.hide(axis="index").to_html(), unsafe_allow_html=True)
 
 
@@ -730,30 +740,52 @@ def render_snap_brief() -> None:
         "lower-exposure 15-20% bucket, not the 40-45% value tier."
     )
 
-    # STATE WAIVERS
+    # SNAP EXPOSURE — COKE REGIONAL CUT
     st.markdown("")
-    st.markdown("##### State Waivers — Effective Dates")
+    st.markdown("##### SNAP Exposure — COKE Regional Footprint")
     waivers_df = pd.DataFrame([
-        ("Iowa", "Jan 1, 2026", "Soda + taxable foods", "No"),
-        ("Indiana", "Jan 1, 2026", "Soft drinks + candy", "Yes (Mid-West)"),
-        ("Nebraska", "Jan 1, 2026", "Soda + energy drinks", "No"),
-        ("Utah", "Jan 1, 2026", "Soft drinks", "No"),
-        ("West Virginia", "Jan 1, 2026", "Soda", "Yes (Mid-Atlantic)"),
-        ("Idaho", "Feb 15, 2026", "Soda + candy", "No"),
-        ("Florida", "Apr 20, 2026", "Soda, energy, candy, prepared desserts", "No"),
-        ("Arkansas", "Jul 1, 2026", "Soda, sugary drinks, candy", "Yes (Mid-South)"),
-        ("Hawaii", "Aug 1, 2026", "Soft drinks", "No"),
-        ("North Dakota", "Sep 1, 2026", "Sweetened bev, energy, candy", "No"),
-        ("Missouri", "Oct 1, 2026", "Candy, desserts, sweetened bev", "No"),
-        ("Ohio", "Oct 1, 2026", "Sugar-sweetened bev", "Yes (Mid-West, Mid-Atlantic)"),
-        ("Virginia", "Oct 1, 2026", "Sweetened bev", "Yes (Carolinas, Mid-Atlantic)"),
-    ], columns=["State", "Effective", "Restricted", "COKE Territory"])
-    _render_styled_table(waivers_df)
+        ("Ohio",                 "11.8", "13.2%", "1.6", "Yes", "Oct-26",   "Approved"),
+        ("North Carolina",       "10.8", "12.2%", "1.3", "No",  "—",        "—"),
+        ("Virginia",             "8.7",  "10.5%", "0.9", "Yes", "Oct-26",   "Approved"),
+        ("Tennessee",            "7.1",  "13.8%", "1.0", "Yes", "Jul-26",   "Approved"),
+        ("Indiana",              "6.9",  "13.0%", "0.9", "Yes", "Mid-2026", "Approved"),
+        ("Maryland",             "6.2",  "11.0%", "0.7", "No",  "—",        "—"),
+        ("South Carolina",       "5.3",  "13.5%", "0.7", "Yes", "Aug-26",   "Approved"),
+        ("Louisiana",            "4.6",  "18.5%", "0.9", "Yes", "Feb-26",   "Active"),
+        ("Kentucky",             "4.5",  "14.1%", "0.6", "No",  "—",        "—"),
+        ("Iowa",                 "3.2",  "10.0%", "0.3", "Yes", "Jan-26",   "Active"),
+        ("Arkansas",             "3.0",  "7.8%",  "0.2", "Yes", "Jul-26",   "Approved"),
+        ("West Virginia",        "1.8",  "15.7%", "0.3", "Yes", "Apr-26",   "Active"),
+        ("Delaware",             "1.0",  "13.0%", "0.1", "No",  "—",        "—"),
+        ("District of Columbia", "0.7",  "17.5%", "0.1", "No",  "—",        "—"),
+        ("Total",                "75.6", "—",     "9.6", "—",   "—",        "—"),
+    ], columns=[
+        "State", "State Population (M)", "SNAP Participation Rate",
+        "SNAP Participants (M)", "Soda Restriction", "Effective Date", "Status",
+    ])
+    # Pink rows = COKE-territory states with an active or approved soda restriction
+    # (per the WHCM regional cut). Total row not highlighted.
+    coke_territory_yes = {"Ohio", "Virginia", "Tennessee", "Indiana",
+                          "South Carolina", "Iowa", "Arkansas", "West Virginia"}
+    highlight = [s in coke_territory_yes for s in waivers_df["State"].tolist()]
+    _render_styled_table(waivers_df, highlight_rows=highlight)
+
+    st.markdown("")
+    summary_df = pd.DataFrame([
+        ("SNAP Participants now Restricted",                                      "6.8M"),
+        ("Percentage of COKE's Regional Population",                              "8.9%"),
+        ("SNAP Propensity to Consume (per Mississippi State Auditor Office)",     "43%"),
+        ("Percentage of COKE's Consumption that may be restricted",               "12.8%"),
+    ], columns=["Metric", "Value"])
+    _render_styled_table(summary_df)
+
     st.caption(
-        "Source: USDA FNS Food Restriction Waivers (waivers, dates, restricted categories); "
-        "COKE FY 2025 10-K (territory mapping by region). ~22 states approved overall; "
-        "10+ implemented as of late April 2026. 5 waiver states sit in COKE territory: "
-        "WV and IN live, AR (Jul 1), OH and VA (Oct 1)."
+        "Pink rows = COKE-territory states with an active or approved soda restriction. "
+        "Sources: state population (US Census 2024), SNAP participation rate and participants "
+        "(USDA FNS Program Data, FY25), waiver status (USDA FNS Food Restriction Waivers), "
+        "propensity-to-consume (Mississippi State Auditor Office). "
+        "Consumption-at-risk math: restricted-state participants × (1 + propensity uplift) ÷ "
+        "regional population = 6.8M × 1.43 / 75.6M ≈ 12.8%."
     )
 
     # MANAGEMENT & EXPERT QUOTES
