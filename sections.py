@@ -499,9 +499,6 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
     st.markdown('<div class="eyebrow">Distribution Cost — Diesel</div>', unsafe_allow_html=True)
     st.markdown(f"## Figure {figure_num}. Diesel Cost Cascade — From Miles to EPS")
     st.markdown(
-        "COKE's delivery fleet runs on diesel; fuel sits in **SG&A (S&D)**, not COGS. "
-        "Per former CFO Jim Clifford, total system diesel consumption is ~100M gallons annually — "
-        "split between COKE's directly-operated fleet and contract carriers paid via freight rates that move with diesel. "
         "Mostly unhedged structurally; ~40% of 2026 hedged near-term per sell-side."
     )
     st.markdown("")
