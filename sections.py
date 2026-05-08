@@ -468,6 +468,129 @@ def render_aluminum_sensitivity(cogs: dict, summary: dict, cap: dict, figure_num
     )
 
 
+def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> None:
+    from pathlib import Path
+
+    annual_gallons_m = 100.0   # Clifford (former CFO): COKE burns ~100M gallons of diesel annually
+    mpg_blended = 6.0          # Clifford
+    annual_miles_m = annual_gallons_m * mpg_blended  # 600M miles
+    tax_rate = 0.25
+    diluted_shares = cap["diluted_shares"]
+
+    spot_price = diesel.get("latest") if diesel.get("latest") else 5.64
+    spot_date_iso = diesel["dates"][-1] if diesel.get("dates") else None
+    if spot_date_iso:
+        try:
+            spot_date_str = datetime.strptime(spot_date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+        except Exception:
+            spot_date_str = spot_date_iso
+    else:
+        spot_date_str = "latest"
+
+    annual_spend_mm = annual_gallons_m * spot_price
+    eps_per_dime = (annual_gallons_m * 0.10 * (1 - tax_rate)) / diluted_shares  # $/share per +$0.10/gal
+
+    assets_dir = Path(__file__).parent / "assets" / "diesel"
+
+    st.markdown('<div class="eyebrow">Distribution Cost — Diesel</div>', unsafe_allow_html=True)
+    st.markdown(f"## Figure {figure_num}. Diesel Cost Cascade — From Miles to EPS")
+    st.markdown(
+        "COKE's delivery fleet runs on diesel; fuel sits in **SG&A (S&D)**, not COGS. "
+        "Per former CFO Jim Clifford, total system diesel consumption is ~100M gallons annually — "
+        "split between COKE's directly-operated fleet and contract carriers paid via freight rates that move with diesel. "
+        "Mostly unhedged structurally; ~40% of 2026 hedged near-term per sell-side."
+    )
+    st.markdown("")
+    st.markdown("##### The Build — Miles, MPG, Gallons")
+
+    def _card(img_path, headline, label, sub):
+        if img_path.exists():
+            st.image(str(img_path), use_container_width=True)
+        st.markdown(
+            f"<div style='text-align:center;font-family:\"Source Serif 4\",Georgia,serif;"
+            f"font-size:2.2rem;font-weight:600;color:{WH_INK};line-height:1.05;margin-top:0.6rem'>{headline}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div style='text-align:center;font-family:Inter,sans-serif;font-size:0.72rem;"
+            f"letter-spacing:0.14em;color:{WH_MUTED};text-transform:uppercase;margin-top:0.25rem'>{label}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div style='text-align:center;font-family:Inter,sans-serif;font-size:0.88rem;"
+            f"color:#4A4A4A;margin-top:0.5rem;line-height:1.4'>{sub}</div>",
+            unsafe_allow_html=True,
+        )
+
+    c1, c2, c3 = st.columns(3, gap="medium")
+    with c1:
+        _card(
+            assets_dir / "trucks.png",
+            f"{annual_miles_m:,.0f}M",
+            "Miles / year",
+            "4,600 vehicles across 60 distribution centers and 14 states (FY25 10-K)",
+        )
+    with c2:
+        _card(
+            assets_dir / "fuel_gauge.png",
+            f"{mpg_blended:.1f}",
+            "MPG (blended)",
+            "Mix of Class 8 line-haul tractors and DSD box trucks; per former CFO",
+        )
+    with c3:
+        _card(
+            assets_dir / "diesel_pump.png",
+            f"{annual_gallons_m:,.0f}M",
+            "Gallons / year",
+            f"~${annual_spend_mm:,.0f}M annual diesel spend @ ${spot_price:.2f}/gal "
+            f"(US retail #2 diesel, week of {spot_date_str})",
+        )
+
+    st.markdown("")
+    st.markdown(
+        f"##### Each $0.10/gal move in diesel ≈ ${eps_per_dime:.2f} EPS impact"
+    )
+
+    levels = [-0.50, -0.40, -0.30, -0.20, -0.10, 0.00, 0.10, 0.20, 0.30, 0.40, 0.50]
+    rows = []
+    for delta in levels:
+        gal_price = spot_price + delta
+        incr_spend_mm = annual_gallons_m * delta  # in $M (gallons in M × $ per gal)
+        eps_impact = -incr_spend_mm * (1 - tax_rate) / diluted_shares
+
+        if abs(delta) < 1e-6:
+            rows.append([
+                f"${gal_price:.2f} (current)",
+                "baseline",
+                "—",
+                "—",
+            ])
+        else:
+            sign = "+" if delta > 0 else "−"
+            rows.append([
+                f"${gal_price:.2f}",
+                f"{sign}${abs(delta):.2f}",
+                f"{sign}${abs(incr_spend_mm):.0f}M",
+                f"{sign}${abs(eps_impact):.2f}" if delta < 0 else f"−${abs(eps_impact):.2f}",
+            ])
+
+    sens_df = pd.DataFrame(rows, columns=[
+        "Diesel ($/gal)", "vs Current", "Incremental Spend", "2026 EPS Impact",
+    ])
+    _render_styled_table(sens_df, first_col_bold=True)
+
+    st.caption(
+        f"Anchored to US weekly retail #2 diesel (FRED GASDESW, week of {spot_date_str}, "
+        f"${spot_price:.2f}/gal). Math: ΔEPS = (ΔPrice × 100M gal × (1 − 25% tax)) ÷ "
+        f"{diluted_shares:.1f}M diluted shares. Negative EPS impact = drag (i.e. price up, EPS down). "
+        "**S&H reconciliation:** FY2025 SD&A 'shipping and handling' line was $842M (Q1 26: $216M, +11% YoY); "
+        "additional S&H sits in COGS for plant→DC movement (not separately disclosed). The fleet-cost line "
+        "in the 10-K Properties section ($130M FY25) covers only direct-fleet repairs/fuel/oil and "
+        "understates total system diesel exposure. ~40% of 2026 hedged near-term (sell-side); structural "
+        "exposure is unhedged beyond ~6 months."
+    )
+
+
 def render_snap_brief() -> None:
     st.markdown('<div class="eyebrow">Demand Catalyst</div>', unsafe_allow_html=True)
     st.markdown("## SNAP Soda Restrictions — Datapoint Brief")

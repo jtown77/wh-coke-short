@@ -194,6 +194,14 @@ def load_core_cpi_quarterly() -> dict:
     return md["core_cpi_quarterly"]
 
 
+def load_diesel_weekly() -> dict:
+    """US weekly retail diesel #2 ($/gal) from FRED GASDESW. Empty dict on miss."""
+    md = _load_market_data()
+    if md is None or not md.get("diesel_weekly"):
+        return {"dates": [], "price_per_gal": [], "latest": None}
+    return md["diesel_weekly"]
+
+
 def apply_live_price_to_returns(summary: dict, live_price: float) -> dict:
     """Recompute return_eps / return_ebitda 'ret' off live price.
 

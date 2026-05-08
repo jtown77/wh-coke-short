@@ -109,6 +109,31 @@ def fetch_core_cpi_quarterly(start_year: int = 2018) -> dict:
     return {"quarters": quarters, "core_cpi": values}
 
 
+def fetch_diesel_weekly() -> dict:
+    """US Weekly Retail Diesel #2 ($/gal) from FRED GASDESW (sourced from EIA).
+
+    Returns full series so the chart layer can do its own truncation.
+    """
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GASDESW"
+    with urllib.request.urlopen(url, timeout=30) as resp:
+        text = resp.read().decode("utf-8")
+    dates = []
+    values = []
+    reader = csv.DictReader(io.StringIO(text))
+    for r in reader:
+        d = r.get("observation_date") or r.get("DATE")
+        v = r.get("GASDESW")
+        if not d or not v or v == ".":
+            continue
+        try:
+            float(v)
+        except ValueError:
+            continue
+        dates.append(d)
+        values.append(float(v))
+    return {"dates": dates, "price_per_gal": values, "latest": values[-1] if values else None}
+
+
 def main() -> int:
     print(f"Fetching {TICKER} live price...")
     live_price = fetch_live_price()
@@ -127,6 +152,10 @@ def main() -> int:
     cpi = fetch_core_cpi_quarterly(start_year=2018)
     print(f"  {len(cpi['quarters'])} quarters: {cpi['quarters'][0]} – {cpi['quarters'][-1]}")
 
+    print("Fetching US weekly retail diesel (GASDESW) from FRED...")
+    diesel = fetch_diesel_weekly()
+    print(f"  {len(diesel['dates'])} weekly bars; latest ${diesel['latest']:.3f}/gal")
+
     payload = {
         "_note": "Market data snapshot. Regenerate with regenerate_market_data.py.",
         "_captured_at": datetime.now().isoformat(timespec="seconds"),
@@ -134,6 +163,7 @@ def main() -> int:
         "stock_history_1y": history,
         "commodities_daily_3y": commodities,
         "core_cpi_quarterly": cpi,
+        "diesel_weekly": diesel,
     }
 
     tmp = MARKET_DATA_FILE.with_suffix(".json.tmp")
