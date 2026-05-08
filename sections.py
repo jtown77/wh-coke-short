@@ -339,9 +339,11 @@ def render_cumulative_pricing(seg: dict, cpi: dict, figure_num: int) -> None:
     st.plotly_chart(fig, use_container_width=True, config=charts.STATIC_CONFIG)
     st.caption(
         "Per-case prices indexed to Q1 2019 = 100. Total is a case-mix-weighted blend of "
-        "sparkling and still. Core CPI (FRED CPILFESL, all items less food and energy, "
-        "quarterly average) is the inflation benchmark. The gap between COKE's pricing and "
-        "Core CPI since 2021 is the magnitude of the affordability problem."
+        "sparkling and still. Food at Home CPI (FRED CPIUFDSL, BLS food-at-home component, "
+        "the closest benchmark for grocery-channel beverage spend) and Core CPI "
+        "(FRED CPILFESL, all items less food and energy) are quarterly averages. "
+        "The gap between COKE's pricing and food-at-home inflation since 2021 is the "
+        "magnitude of the affordability problem."
     )
 
 
@@ -548,7 +550,7 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
 
     st.markdown("")
     st.markdown(
-        f"##### Each $0.10/gal move in diesel ≈ ${eps_per_dime:.2f} EPS impact"
+        f"##### Each \\$0.10/gal move in diesel ≈ \\${eps_per_dime:.2f} EPS impact"
     )
 
     levels = [-0.50, -0.40, -0.30, -0.20, -0.10, 0.00, 0.10, 0.20, 0.30, 0.40, 0.50]
@@ -581,11 +583,11 @@ def render_diesel_sensitivity(diesel: dict, cap: dict, figure_num: int = 7) -> N
 
     st.caption(
         f"Anchored to US weekly retail #2 diesel (FRED GASDESW, week of {spot_date_str}, "
-        f"${spot_price:.2f}/gal). Math: ΔEPS = (ΔPrice × 100M gal × (1 − 25% tax)) ÷ "
+        f"\\${spot_price:.2f}/gal). Math: ΔEPS = (ΔPrice × 100M gal × (1 − 25% tax)) ÷ "
         f"{diluted_shares:.1f}M diluted shares. Negative EPS impact = drag (i.e. price up, EPS down). "
-        "**S&H reconciliation:** FY2025 SD&A 'shipping and handling' line was $842M (Q1 26: $216M, +11% YoY); "
+        "**S&H reconciliation:** FY2025 SD&A 'shipping and handling' line was \\$842M (Q1 26: \\$216M, +11% YoY); "
         "additional S&H sits in COGS for plant→DC movement (not separately disclosed). The fleet-cost line "
-        "in the 10-K Properties section ($130M FY25) covers only direct-fleet repairs/fuel/oil and "
+        "in the 10-K Properties section (\\$130M FY25) covers only direct-fleet repairs/fuel/oil and "
         "understates total system diesel exposure. ~40% of 2026 hedged near-term (sell-side); structural "
         "exposure is unhedged beyond ~6 months."
     )

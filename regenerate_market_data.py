@@ -62,20 +62,20 @@ def fetch_commodities_daily(years: int = 3) -> dict:
     }
 
 
-def fetch_core_cpi_quarterly(start_year: int = 2018) -> dict:
-    """Core CPI (CPILFESL) from FRED, monthly SA, averaged to quarterly.
-
-    Anchored at start_year so we have a Q1 baseline before Q1 2019.
+def _fetch_fred_monthly(series_id: str, start_year: int) -> dict:
+    """Pull a monthly FRED series via the public CSV endpoint, with single-month
+    gap-fill via neighbor interpolation (BLS occasionally publishes one-month lags).
+    Returns {(year, month): value}.
     """
-    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPILFESL"
+    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
     with urllib.request.urlopen(url, timeout=30) as resp:
         text = resp.read().decode("utf-8")
 
-    monthly = {}  # YYYY-MM -> value
+    monthly: dict = {}
     reader = csv.DictReader(io.StringIO(text))
     for r in reader:
         d = r.get("observation_date") or r.get("DATE")
-        v = r.get("CPILFESL")
+        v = r.get(series_id)
         if not d or not v or v == ".":
             continue
         try:
@@ -96,7 +96,10 @@ def fetch_core_cpi_quarterly(start_year: int = 2018) -> dict:
         after = _shift(ym, 2)
         if gap not in monthly and after in monthly:
             monthly[gap] = (monthly[ym] + monthly[after]) / 2
+    return monthly
 
+
+def _quarterize(monthly: dict, start_year: int) -> tuple[list[str], list[float]]:
     quarters = []
     values = []
     for year in range(start_year, datetime.utcnow().year + 1):
@@ -106,7 +109,28 @@ def fetch_core_cpi_quarterly(start_year: int = 2018) -> dict:
             if len(vals) == 3:
                 quarters.append(f"Q{q} {str(year)[-2:]}")
                 values.append(sum(vals) / 3)
-    return {"quarters": quarters, "core_cpi": values}
+    return quarters, values
+
+
+def fetch_cpi_quarterly(start_year: int = 2018) -> dict:
+    """Core CPI (CPILFESL) and Food-at-Home CPI (CPIUFDSL) from FRED, monthly SA,
+    averaged to quarterly. Aligned to the intersection of available quarters.
+
+    JSON key kept as `core_cpi_quarterly` for backwards compat; payload now also
+    carries `food_at_home_cpi`.
+    """
+    core_qs, core_vs = _quarterize(_fetch_fred_monthly("CPILFESL", start_year), start_year)
+    fah_qs, fah_vs = _quarterize(_fetch_fred_monthly("CPIUFDSL", start_year), start_year)
+
+    fah_set = set(fah_qs)
+    common = [q for q in core_qs if q in fah_set]
+    core_map = dict(zip(core_qs, core_vs))
+    fah_map = dict(zip(fah_qs, fah_vs))
+    return {
+        "quarters": common,
+        "core_cpi": [core_map[q] for q in common],
+        "food_at_home_cpi": [fah_map[q] for q in common],
+    }
 
 
 def fetch_diesel_weekly() -> dict:
@@ -148,9 +172,12 @@ def main() -> int:
     print(f"  ALI=F: {len(commodities['aluminum']['dates'])} bars, "
           f"CL=F: {len(commodities['wti']['dates'])} bars")
 
-    print("Fetching Core CPI (CPILFESL) from FRED...")
-    cpi = fetch_core_cpi_quarterly(start_year=2018)
+    print("Fetching Core CPI (CPILFESL) + Food-at-Home CPI (CPIUFDSL) from FRED...")
+    cpi = fetch_cpi_quarterly(start_year=2018)
     print(f"  {len(cpi['quarters'])} quarters: {cpi['quarters'][0]} – {cpi['quarters'][-1]}")
+    if cpi["quarters"]:
+        print(f"  Core CPI {cpi['quarters'][-1]}: {cpi['core_cpi'][-1]:.2f}")
+        print(f"  Food at Home {cpi['quarters'][-1]}: {cpi['food_at_home_cpi'][-1]:.2f}")
 
     print("Fetching US weekly retail diesel (GASDESW) from FRED...")
     diesel = fetch_diesel_weekly()

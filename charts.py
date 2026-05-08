@@ -205,19 +205,22 @@ def cumulative_pricing_chart(seg: dict, cpi: dict, figure_num: int, base_label: 
     st_idx = [(p / st_p[0]) * 100 if st_p[0] else float("nan") for p in st_p]
     tot_idx = [(p / total_p[0]) * 100 if total_p[0] and total_p[0] == total_p[0] else float("nan") for p in total_p]
 
-    # Align Core CPI to same quarter range
+    # Align CPI benchmarks to same quarter range
     cpi_q = cpi.get("quarters", [])
-    cpi_v = cpi.get("core_cpi", [])
-    cpi_map = dict(zip(cpi_q, cpi_v))
-    cpi_base = cpi_map.get(base_label)
-    cpi_idx = [(cpi_map[q] / cpi_base) * 100 if (cpi_base and q in cpi_map) else float("nan") for q in qs]
+    core_map = dict(zip(cpi_q, cpi.get("core_cpi", [])))
+    fah_map = dict(zip(cpi_q, cpi.get("food_at_home_cpi", [])))
+    core_base = core_map.get(base_label)
+    fah_base = fah_map.get(base_label)
+    core_idx = [(core_map[q] / core_base) * 100 if (core_base and q in core_map) else float("nan") for q in qs]
+    fah_idx = [(fah_map[q] / fah_base) * 100 if (fah_base and q in fah_map) else float("nan") for q in qs]
 
     fig = go.Figure()
     series = [
         ("Sparkling", sp_idx, WH_NAVY, "solid"),
         ("Still", st_idx, WH_ACCENT, "solid"),
         ("Total (mix-weighted)", tot_idx, WH_INK, "solid"),
-        ("Core CPI", cpi_idx, WH_GRAY, "dash"),
+        ("Food at Home CPI", fah_idx, WH_AMBER, "dash"),
+        ("Core CPI", core_idx, WH_GRAY, "dash"),
     ]
     for name, vals, color, dash in series:
         fig.add_trace(go.Scatter(
@@ -231,14 +234,15 @@ def cumulative_pricing_chart(seg: dict, cpi: dict, figure_num: int, base_label: 
     sub = (
         f"Index: {base_label} = 100 • through {qs[-1]} • "
         f"Sparkling {last.get('Sparkling', 0):.0f} • Still {last.get('Still', 0):.0f} • "
-        f"Total {last.get('Total (mix-weighted)', 0):.0f} • Core CPI {last.get('Core CPI', 0):.0f}"
+        f"Total {last.get('Total (mix-weighted)', 0):.0f} • "
+        f"Food at Home {last.get('Food at Home CPI', 0):.0f} • Core CPI {last.get('Core CPI', 0):.0f}"
     )
 
     fig.update_xaxes(title="", tickangle=-45, nticks=14)
     fig.update_yaxes(title=f"Index ({base_label} = 100)")
     return _apply_style(
         fig,
-        f"Figure {figure_num}. Cumulative Price Index — COKE Pricing vs. Core CPI",
+        f"Figure {figure_num}. Cumulative Price Index — COKE Pricing vs. Core CPI & Food at Home",
         sub,
         height=520,
     )
