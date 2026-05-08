@@ -86,6 +86,17 @@ def fetch_core_cpi_quarterly(start_year: int = 2018) -> dict:
             continue
         monthly[(dt.year, dt.month)] = float(v)
 
+    def _shift(ym, delta):
+        y, m = ym
+        idx = y * 12 + (m - 1) + delta
+        return (idx // 12, idx % 12 + 1)
+
+    for ym in list(monthly.keys()):
+        gap = _shift(ym, 1)
+        after = _shift(ym, 2)
+        if gap not in monthly and after in monthly:
+            monthly[gap] = (monthly[ym] + monthly[after]) / 2
+
     quarters = []
     values = []
     for year in range(start_year, datetime.utcnow().year + 1):
