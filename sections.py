@@ -269,9 +269,9 @@ def render_executive_summary() -> None:
         "aluminum and PET resin accounting for ~10% of total COGS. Both commodities "
         "are up >50% this year which should be a ~\\$3 hit to EPS. The company has zero "
         "sell-side coverage despite having a \\$14.4bn TEV and trading close to \\$100mn "
-        "a day. We believe that normalized earnings power for this business is \\$6-7 "
-        "EPS and deserves a high teens multiple, giving it a downside of close to 50% "
-        "from the current price above \\$200."
+        "a day. We see 2026 EPS landing in the high-\\$6s with through-cycle earnings "
+        "power in the \\$6-7 range; at a high-teens multiple that implies material "
+        "downside from the current \\$174 — base case -26%, bear case -53%."
     )
 
 
@@ -280,22 +280,28 @@ def render_thesis() -> None:
 
     st.markdown("**Thesis #1: Demand is squeezed from SNAP benefits ending for sugary drinks**")
     st.markdown(
-        "- 22 states have already passed legislation to prohibit SNAP benefits to be "
-        "used on sugary foods and drinks. 7 states have already pushed through these "
-        "regulations (IA, IN, NE, UT, WV on Jan 1; ID Feb 15; FL Apr 20) and 6 states "
-        "will push these policies through from now until October, 2026 (AR Jul 1, HI "
-        "Aug 1, ND Sep 1, MO/OH/VA Oct 1). 5 of these states sit within COKE's "
-        "distribution territory per the FY 2025 10-K (Carolinas, Mid-Atlantic, "
-        "Mid-South, Mid-West): WV and IN are already live (Jan 1, 2026), AR goes "
-        "effective July 1, and OH and VA go effective October 1, 2026."
+        "- 22 states have passed legislation to prohibit SNAP benefits from being "
+        "used on sugary foods and drinks. **8 of these states sit within COKE's "
+        "distribution territory** per the FY 2025 10-K (Carolinas, Mid-Atlantic, "
+        "Mid-South, Mid-West). Three are already active (IA Jan-26, WV Apr-26, IN "
+        "mid-26) and five more go effective in 2H26 (AR Jul-26, TN Jul-26, SC Aug-26, "
+        "OH Oct-26, VA Oct-26). Per WHCM's regional cut, that translates to **6.8M "
+        "SNAP participants now restricted (~8.9% of COKE's regional population) and "
+        "~12.8% of COKE's regional CSD consumption at risk**."
     )
 
     st.markdown("**Thesis #2: Costs are squeezed from the war in Iran**")
     st.markdown(
         "- Aluminum should be a ~\\$200mn headwind to numbers this year assuming "
         "aluminum prices hold through the rest of the year\n"
-        "- Diesel costs should prove to be a ~\\$50mn headwind this year, and PET resin "
-        "should be a ~\\$25mn headwind"
+        "- Diesel costs should prove to be a ~\\$200mn pre-tax headwind this year, "
+        "and PET resin should be a ~\\$25mn headwind\n"
+        "- KO's Q1 26 call corroborates the bottler-cost setup. CFO **John Murphy**: "
+        "*\"Right now we estimate it's manageable at the company level, given we "
+        "have less exposure. Our bottling partners have more exposure, particularly "
+        "aluminum and PET, on the back of both the oil price impact and just the "
+        "overall supply chain disruptions that are likely to affect us as we go "
+        "through the year.\"*"
     )
 
     st.markdown("**Thesis #3: Pricing has increased >50% since 2019 and consumers are tapped out**")
@@ -377,11 +383,14 @@ def render_commodity_stack(commodities: dict, figure_num: int) -> None:
     st.plotly_chart(fig, use_container_width=True, config=charts.STATIC_CONFIG)
     st.caption(
         "Aluminum (CME Midwest U.S., $/MT — LME 3M + Midwest premium) drives the can-pack portion of "
-        "COGS; WTI oil drives PET-resin pricing and freight cost. Both have spiked sharply in 2025-2026."
+        "COGS; WTI oil drives PET-resin pricing and freight cost. Both have spiked sharply in 2025-2026. "
+        "**Note:** This chart shows raw aluminum (LME 3M + Midwest premium); the cascade table below "
+        "uses **all-in landed cost**, which is roughly 3.3× the raw price after layering in the can "
+        "manufacturer (CCK) markup."
     )
 
 
-def render_aluminum_sensitivity(cogs: dict, summary: dict, cap: dict, figure_num: int = 5) -> None:
+def render_aluminum_sensitivity(cogs: dict, summary: dict, cap: dict, figure_num: int = 6) -> None:
     from pathlib import Path
 
     annual_cases_mm = 200.0  # round forecast figure for can-pack volume
@@ -404,6 +413,8 @@ def render_aluminum_sensitivity(cogs: dict, summary: dict, cap: dict, figure_num
 
     assets_dir = Path(__file__).parent / "assets" / "aluminum"
 
+    st.markdown('<div class="eyebrow">Packaging Cost — Aluminum</div>', unsafe_allow_html=True)
+    st.markdown(f"## Figure {figure_num}. Aluminum Cost Cascade — From Cans to EPS")
     st.markdown("##### The Build — How Much Aluminum COKE Buys Each Year")
 
     def _card(img_path, headline, label, sub):
@@ -518,7 +529,7 @@ def render_pet_resin_sensitivity(cogs: dict, seg: dict, cap: dict, figure_num: i
 
     assets_dir = Path(__file__).parent / "assets" / "pet"
 
-    st.markdown('<div class="eyebrow">Cost Stack</div>', unsafe_allow_html=True)
+    st.markdown('<div class="eyebrow">Packaging Cost — PET Resin</div>', unsafe_allow_html=True)
     st.markdown(f"## Figure {figure_num}. PET Resin Cost Cascade — From Cases to EPS")
     st.markdown("##### The Build — How Much PET Resin COKE Buys Each Year")
 
@@ -861,19 +872,10 @@ def render_snap_brief() -> None:
     st.markdown("##### SNAP Thesis Ledger — COKE-Specific")
     ledger_df = pd.DataFrame([
         ("CSD velocity -5.1% 52w (NielsenIQ, Apr 2026)", "KDP: gov shutdown 'natural experiment' showed CSD purchases held when SNAP funding paused"),
-        ("5 COKE-territory states restricted: WV, IN live; AR Jul 1; OH, VA Oct 1", "National brands only 15-20% SNAP-paid (vs 40-45% for value brands)"),
+        ("8 COKE-territory states restricted (IA/WV/IN active; AR/TN/SC/OH/VA in 2H26)", "National brands only 15-20% SNAP-paid (vs 40-45% for value brands)"),
         ("PEP mgmt explicitly flagged SNAP as 1Q headwind", "KO Q1 26 reported +3% global volume / +10% organic rev, overall not impaired"),
         ("Grocery SVP: 'could hurt the category... particularly CSDs'", "Only 3.3% of total trips use SNAP nationally"),
         ("C-store soda/candy ~45% gross margin, channel pain", "Substitution flow into other COKE still beverages possible"),
     ], columns=["BEAR points", "BULL / counter-points"])
     _render_styled_table(ledger_df, first_col_bold=False)
 
-    # SOURCING NOTES
-    st.markdown("")
-    st.markdown("##### Sourcing Notes")
-    st.markdown(
-        "- **TD Cowen Moskow note** previously cited from Perplexity could not be verified on AlphaSense; excluded from working thesis until source confirmed.\n"
-        "- **Ibotta cashback panel** previously cited replaced with NielsenIQ scanner data (industry-standard panel) via JPM 28 Apr 2026 note.\n"
-        "- **PEP Q1 26 call** not yet ingested in EarningsCall.biz API; PEP SNAP commentary sourced via JPM Carla Casella note dated 16 Apr 2026.\n"
-        "- **KO Q1 26 quotes** verified verbatim from earnings transcript (call held 28 Apr 2026)."
-    )

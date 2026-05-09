@@ -396,7 +396,7 @@ def main() -> None:
 
         st.markdown("---")
         st.markdown('<div class="eyebrow">Cost Stack</div>', unsafe_allow_html=True)
-        st.markdown("## Commodity Exposure — Aluminum and Oil")
+        st.markdown("## Commodity Cost Stack")
         sections.render_commodity_stack(commodities, figure_num=5)
         st.markdown("")
         sections.render_aluminum_sensitivity(cogs, summary, cap, figure_num=6)
