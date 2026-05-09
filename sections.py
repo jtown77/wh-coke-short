@@ -270,7 +270,7 @@ def render_executive_summary() -> None:
         "are up >50% this year which should be a ~\\$3 hit to EPS. The company has zero "
         "sell-side coverage despite having a \\$14.4bn TEV and trading close to \\$100mn "
         "a day. We see 2026 EPS landing in the high-\\$6s with through-cycle earnings "
-        "power in the \\$6-7 range; at a high-teens multiple that implies material "
+        "power in the \\$7-8 range; at a high-teens multiple that implies material "
         "downside from the current \\$174 — base case -26%, bear case -53%."
     )
 
