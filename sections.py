@@ -729,32 +729,7 @@ def render_snap_brief() -> None:
         "and earnings transcripts via EarningsCall.biz API. Quotes verbatim."
     )
 
-    # SCANNER DATA
-    st.markdown("##### Scanner Data")
-    scanner_df = pd.DataFrame([
-        ("CSD velocity (period ending Apr 18, 2026)", "-1.5%", "-5.1%", "JPM NielsenIQ note, 28 Apr 2026"),
-        ("Salty snacks velocity (52w)", "—", "-5.5%", "JPM NielsenIQ note, 28 Apr 2026"),
-        ("% of US shopping trips using SNAP (Mar 2026)", "—", "3.3%", "JPM Numerator (Above the Line), 22 Apr 2026"),
-        ("% Walmart trips using SNAP", "—", "5.7%", "JPM Numerator, 22 Apr 2026"),
-        ("% Albertsons (ACI) trips using SNAP", "—", "5.7%", "JPM Numerator, 22 Apr 2026"),
-    ], columns=["Metric", "4-week", "52-week", "Source"])
-    _render_styled_table(scanner_df)
-
-    # BRAND-TIER EXPOSURE
-    st.markdown("")
-    st.markdown("##### SNAP Exposure by Brand Tier (Walmart Sr Manager, 8 May 2025)")
-    tier_df = pd.DataFrame([
-        ("Value soda", "Faygo, Shasta", "40-45%"),
-        ("National brand", "Coca-Cola, Pepsi", "15-20%"),
-    ], columns=["Brand Tier", "Examples", "% of Sales Paid via SNAP (Midwest WMT)"])
-    _render_styled_table(tier_df)
-    st.markdown(
-        "**Read for COKE:** as a national-brand bottler (Coca-Cola Trademark), COKE sits in the "
-        "lower-exposure 15-20% bucket, not the 40-45% value tier."
-    )
-
     # SNAP EXPOSURE — COKE REGIONAL CUT
-    st.markdown("")
     st.markdown("##### SNAP Exposure — COKE Regional Footprint")
     waivers_df = pd.DataFrame([
         ("Ohio",                 "11.8", "13.2%", "1.6", "Yes", "Oct-26",   "Approved"),
@@ -799,6 +774,31 @@ def render_snap_brief() -> None:
         "propensity-to-consume (Mississippi State Auditor Office). "
         "Consumption-at-risk math: restricted-state participants × (1 + propensity uplift) ÷ "
         "regional population = 6.8M × 1.43 / 75.6M ≈ 12.8%."
+    )
+
+    # SCANNER DATA
+    st.markdown("")
+    st.markdown("##### Scanner Data")
+    scanner_df = pd.DataFrame([
+        ("CSD velocity (period ending Apr 18, 2026)", "-1.5%", "-5.1%", "JPM NielsenIQ note, 28 Apr 2026"),
+        ("Salty snacks velocity (52w)", "—", "-5.5%", "JPM NielsenIQ note, 28 Apr 2026"),
+        ("% of US shopping trips using SNAP (Mar 2026)", "—", "3.3%", "JPM Numerator (Above the Line), 22 Apr 2026"),
+        ("% Walmart trips using SNAP", "—", "5.7%", "JPM Numerator, 22 Apr 2026"),
+        ("% Albertsons (ACI) trips using SNAP", "—", "5.7%", "JPM Numerator, 22 Apr 2026"),
+    ], columns=["Metric", "4-week", "52-week", "Source"])
+    _render_styled_table(scanner_df)
+
+    # BRAND-TIER EXPOSURE
+    st.markdown("")
+    st.markdown("##### SNAP Exposure by Brand Tier (Walmart Sr Manager, 8 May 2025)")
+    tier_df = pd.DataFrame([
+        ("Value soda", "Faygo, Shasta", "40-45%"),
+        ("National brand", "Coca-Cola, Pepsi", "15-20%"),
+    ], columns=["Brand Tier", "Examples", "% of Sales Paid via SNAP (Midwest WMT)"])
+    _render_styled_table(tier_df)
+    st.markdown(
+        "**Read for COKE:** as a national-brand bottler (Coca-Cola Trademark), COKE sits in the "
+        "lower-exposure 15-20% bucket, not the 40-45% value tier."
     )
 
     # MANAGEMENT & EXPERT QUOTES
