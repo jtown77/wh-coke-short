@@ -285,9 +285,8 @@ def render_thesis() -> None:
         "distribution territory** per the FY 2025 10-K (Carolinas, Mid-Atlantic, "
         "Mid-South, Mid-West). Three are already active (IA Jan-26, WV Apr-26, IN "
         "mid-26) and five more go effective in 2H26 (AR Jul-26, TN Jul-26, SC Aug-26, "
-        "OH Oct-26, VA Oct-26). Per WHCM's regional cut, that translates to **6.8M "
-        "SNAP participants now restricted (~8.9% of COKE's regional population) and "
-        "~12.8% of COKE's regional CSD consumption at risk**."
+        "OH Oct-26, VA Oct-26). **6.8M SNAP participants in COKE regions are now "
+        "restricted (8.9% of COKE's regional population).**"
     )
 
     st.markdown("**Thesis #2: Costs are squeezed from the war in Iran**")
