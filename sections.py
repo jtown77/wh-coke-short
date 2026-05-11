@@ -294,7 +294,7 @@ def render_thesis() -> None:
         "- Aluminum should be a ~\\$200mn headwind to numbers this year assuming "
         "aluminum prices hold through the rest of the year\n"
         "- Diesel costs should prove to be a ~\\$200mn pre-tax headwind this year, "
-        "and PET resin should be a ~\\$25mn headwind\n"
+        "and PET resin should be a ~\\$25-50mn headwind\n"
         "- KO's Q1 26 call corroborates the bottler-cost setup. CFO **John Murphy**: "
         "*\"Right now we estimate it's manageable at the company level, given we "
         "have less exposure. Our bottling partners have more exposure, particularly "
