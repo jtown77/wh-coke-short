@@ -34,6 +34,7 @@ SNAPSHOT_FILE = Path(__file__).parent / "data" / "snapshot.json"
 
 SCENARIO_VALUES = [("Bull", "1 - Bull"), ("Base", "2 - Base"), ("Bear", "3 - Bear")]
 YEAR_COLS = ["G", "H", "I", "J", "K", "L", "M", "N"]  # 2022-2029 on Summary
+ADJ_CASH_EPS_COLS = ["BQ", "BR", "BS", "BT", "BU", "BV", "BW", "BX"]  # 2022-2029 adj. cash EPS
 
 # Summary tab row numbers (1-indexed Excel rows)
 SUMMARY_ROWS = {
@@ -45,6 +46,7 @@ SUMMARY_ROWS = {
     "eps": 22,
     "eps_yoy": 23,
 }
+ADJ_CASH_EPS_ROW = 52  # Summary!BQ52:BX52
 VALUATION_ROWS = {
     "ev_sales": 30,
     "ev_ebitda": 33,
@@ -77,8 +79,13 @@ def _row(ws, row: int, cols: list[str]) -> list[float | None]:
     return [_num(ws.Range(f"{c}{row}").Value) for c in cols]
 
 
-def capture_summary_scenario(ws_summary) -> dict:
+def capture_summary_scenario(ws_summary, ws_wh_model=None) -> dict:
     out = {k: _row(ws_summary, r, YEAR_COLS) for k, r in SUMMARY_ROWS.items()}
+    # Adj. Cash EPS lives on WH Model!BQ52:BX52 (labels at WH Model!row 5, B52 = "Adj. Cash EPS")
+    if ws_wh_model is not None:
+        out["adj_cash_eps"] = _row(ws_wh_model, ADJ_CASH_EPS_ROW, ADJ_CASH_EPS_COLS)
+    else:
+        out["adj_cash_eps"] = [None] * len(YEAR_COLS)
     out["valuation"] = {k: _row(ws_summary, r, YEAR_COLS) for k, r in VALUATION_ROWS.items()}
     return out
 
@@ -270,6 +277,7 @@ def main() -> int:
         print(f"Opening {LIVE_MODEL.name}...")
         wb = excel.Workbooks.Open(str(LIVE_MODEL), ReadOnly=False, UpdateLinks=0)
         ws_summary = wb.Worksheets("Summary")
+        ws_wh_model = wb.Worksheets("WH Model")
         original_d4 = ws_summary.Range("D4").Value
         print(f"  D4 was: {original_d4!r}")
 
@@ -310,15 +318,26 @@ def main() -> int:
         scen_data: dict[str, dict] = {}
         for label, value in SCENARIO_VALUES:
             print(f"  Setting D4 = {value!r} and recalculating...")
-            _set_d4_and_recalc(value)
-            scen_data[label] = capture_summary_scenario(ws_summary)
+            # Bloomberg async queries take time to settle, especially after the first D4 flip.
+            # Retry up to 4 times with increasing sleeps if EBITDA/EPS come back None.
+            captured = None
+            for attempt in range(4):
+                sleep_for = 3.0 + 2.0 * attempt  # 3s, 5s, 7s, 9s
+                _set_d4_and_recalc(value, sleep_after=sleep_for)
+                captured = capture_summary_scenario(ws_summary, ws_wh_model)
+                if captured["ebitda"][4] is not None and captured["eps"][4] is not None:
+                    break
+                print(f"    Bloomberg not settled yet (attempt {attempt+1}/4), retrying...")
+            scen_data[label] = captured
             r26 = scen_data[label]["revenue"][4]
             e26 = scen_data[label]["ebitda"][4]
             p26 = scen_data[label]["eps"][4]
+            ce26 = scen_data[label]["adj_cash_eps"][4]
             r26s = f"{r26:,.0f}M" if r26 is not None else "n/a"
             e26s = f"{e26:,.0f}M" if e26 is not None else "n/a"
             p26s = f"${p26:.2f}" if p26 is not None else "n/a"
-            print(f"    {label}: rev 2026={r26s}  ebitda 2026={e26s}  eps 2026={p26s}")
+            ce26s = f"${ce26:.2f}" if ce26 is not None else "n/a"
+            print(f"    {label}: rev 2026={r26s}  ebitda 2026={e26s}  eps 2026={p26s}  cash eps 2026={ce26s}")
 
         # Capture cap table + return tables once (D4=Base for clean state)
         _set_d4_and_recalc("2 - Base")

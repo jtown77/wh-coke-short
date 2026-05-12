@@ -86,6 +86,7 @@ def load_summary(scenario: str = "Base") -> dict:
         "ebitda_yoy": scen["ebitda_yoy"],
         "eps": scen["eps"],
         "eps_yoy": scen["eps_yoy"],
+        "adj_cash_eps": scen.get("adj_cash_eps", [None] * len(static["years"])),
         "valuation": {"years": static["years"], **scen["valuation"]},
         "cap_table_static": static["cap_table_static"],
         "return_eps": scen["return_eps"],

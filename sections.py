@@ -183,8 +183,9 @@ def render_summary_block(s: dict, cap: dict) -> None:
         live_shares_static = cap["diluted_shares"]
         nci = cap["nci"]
 
-        ev_ebitda_by_year, pe_by_year = {}, {}
+        ev_ebitda_by_year, pe_by_year, cash_pe_by_year = {}, {}, {}
         forward_years = {2025, 2026, 2027, 2028, 2029}
+        adj_cash_eps = s.get("adj_cash_eps") or [None] * len(years)
         for y in v["years"]:
             if y not in forward_years:
                 continue
@@ -196,20 +197,25 @@ def render_summary_block(s: dict, cap: dict) -> None:
                 i_s = years.index(y)
                 ebitda = s["ebitda"][i_s] if i_s < len(s["ebitda"]) else None
                 eps = s["eps"][i_s] if i_s < len(s["eps"]) else None
+                cash_eps = adj_cash_eps[i_s] if i_s < len(adj_cash_eps) else None
                 if ebitda:
                     ev_ebitda_by_year[y] = ev_y / ebitda
                 if eps:
                     pe_by_year[y] = live_price / eps
+                if cash_eps:
+                    cash_pe_by_year[y] = live_price / cash_eps
 
         fin_data = {
             "Metric": [
                 "Revenue ($M)", "  YoY %",
                 "EBITDA ($M)", "  Margin %", "  YoY %",
                 "Adj. EPS ($)", "  YoY %",
-                "EV/EBITDA", "P/E",
+                "Adj. Cash EPS ($)",
+                "EV/EBITDA", "P/E", "Adj. Cash P/E",
             ],
         }
         for i, y in enumerate(years):
+            cash_eps_i = adj_cash_eps[i] if i < len(adj_cash_eps) else None
             fin_data[str(y)] = [
                 _fmt_money(s["revenue"][i], 0),
                 _fmt_pct(s["revenue_yoy"][i]),
@@ -218,8 +224,10 @@ def render_summary_block(s: dict, cap: dict) -> None:
                 _fmt_pct(s["ebitda_yoy"][i]),
                 f"${s['eps'][i]:.2f}" if s["eps"][i] is not None else "",
                 _fmt_pct(s["eps_yoy"][i]),
+                f"${cash_eps_i:.2f}" if cash_eps_i is not None else "",
                 _fmt_x(ev_ebitda_by_year[y], 1) if y in ev_ebitda_by_year else "",
                 _fmt_x(pe_by_year[y], 1) if y in pe_by_year else "",
+                _fmt_x(cash_pe_by_year[y], 1) if y in cash_pe_by_year else "",
             ]
         fin_df = pd.DataFrame(fin_data)
         _render_styled_table(fin_df)
